@@ -1,0 +1,5 @@
+#!/bin/bash
+
+blox_dir=$(l /usr/local/lib/python3.*/dist-packages/ | grep BLOX)
+
+cp -rf $1 /usr/local/lib/python3.6/dist-packages/$blox_dir/Modules/

@@ -19,6 +19,6 @@ limitations under the License.
 
 from BLOX import Trainer
 
-Trainer('config.json').run()
+Trainer('Configs/config.json').run()
 
 

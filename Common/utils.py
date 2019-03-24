@@ -31,7 +31,24 @@ import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
 
+import os,yajl as json
+import inspect
+from importlib import import_module
 
+def load(fname):
+    modules = [fname["Module"]]#open(fname,'r').read()
+    table = {}
+    args = fname["Args"]
+    for i,module in enumerate(modules):
+        imported = import_module(module)
+        # print(inspect.getmembers(imported))
+        for c in inspect.getmembers(imported, inspect.isclass):
+            # print(c[0],getattr(imported,c[0]))
+            try:
+                table[c[0]] = c[1](**args)
+            except:
+                pass
+    return table
 
 def GetLoss(f,kwargs):
     return getattr(nn,f)(**kwargs)
@@ -51,7 +68,7 @@ def PrintSummary(tls,ttl,dls,tdl,e,s):
     print('\tRecent Dev Loss: {}'.format(tdl))
     print('\t{}\n\t{}\n'.format(onelineplot(dls),curr_pos))
 
-def onelineplot( x, chars=u"▁▂▃▄▅▆▇█", sep="" ):
+def onelineplot( x, chars=u" _▁▂▃▄▅▆▇█", sep="" ):
     """ numbers -> v simple one-line plots like
         Usage:
             astring = onelineplot( numbers [optional chars= sep= ])

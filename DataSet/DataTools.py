@@ -26,7 +26,7 @@ import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
 from html.parser import HTMLParser
-
+from .DataSet import DataSet
 class MLStripper(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -62,7 +62,7 @@ def df2ds(self,df,inputs,target):
         unique = df[target].unique()
         table = dict(zip(unique,range(len(unique))))
     return DataSet({
-            'inputs': [ array2pt( [ df[i][r] if not in in_tables else in_tables[i][df[i][r]] for i in inputs ] ) for r in range(df.shape[0]) ] ,
+            'inputs': [ array2pt( [ df[i][r] if i not in in_tables else in_tables[i][df[i][r]] for i in inputs ] ) for r in range(df.shape[0]) ] ,
             'targets':[ array2pt([table[v]]) if table else [v]  for v in df[target] ]
     })
 

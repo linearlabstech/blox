@@ -1,0 +1,2 @@
+python3 setup install
+cp add2blx /bin/

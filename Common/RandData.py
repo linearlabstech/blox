@@ -16,13 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
+import random,torch
 
-def GenRandDatSet(input_size=128,output_size=128,size=500):
-    import random,torch
-
-    d = [ [torch.randn(1,32),torch.randn(1,32)] for _ in range(500)]
-
-    return {
-        'inputs' :[torch.randn(1, input_size)] for _ in range(size)]
-        'targets':[torch.randn(1,output_size)] for _ in range(size)]
-    }
+def GenRandDatSet(input_size=128,output_size=128,size=500):pass
+    # return {
+    #     'inputs' :[torch.randn(1, input_size)] for _ in range(size)]
+    #     'targets':[torch.randn(1,output_size)] for _ in range(size)]
+    # }

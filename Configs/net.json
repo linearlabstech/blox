@@ -1,23 +1,8 @@
 {
     "Layers":[
             {
-                "DEF":"Img2Vec"
+                "DEF":"AnotherBlock"
             },
-            {
-                "REPEAT":{
-                    "BLOCK":"AnotherBlock",
-                    "REPS":8
-                }
-            },
-            {
-                "REPEAT":{
-                    "BLOCK":"ThirdBlock",
-                    "REPS":4
-                }
-            },
-            {
-                "DEF":"LastBlock"
-            }
     ],
     "Notes":"",
     "Name":"",

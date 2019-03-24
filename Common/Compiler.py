@@ -28,8 +28,6 @@ def handle_linear(kwargs):
 def handle_act(act):
     if hasattr(nn,act):
         return getattr(nn,act)()
-    elif hasattr(CustomActs,act):
-        return getattr(CustomActs,act)()
 
 def handle_(args):
     (_type,kwargs) = args
@@ -51,7 +49,7 @@ def Compile(obj):
         if isinstance(f,dict):
             COMPONENTS.update( load( f ) )
     for k,fs in obj['DEFS']['BLOCKS'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
-    for layer in obj['Layers']:
+    for layer in obj['LAYERS']:
         if 'DEF' in layer:
             f = layer['DEF']
             # if the block is defined in another file,load and continue

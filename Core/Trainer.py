@@ -45,7 +45,7 @@ class Trainer:
     def __init__(self,args):
         try: self.config = json.load(open(args.config,'r'))
         except: 
-            if isinstance(args,dict) self.config = args
+            if isinstance(args,dict): self.config = args
             else:raise ValueError('Incorrect data type passed to Trainer class')
     
     def build(self):pass

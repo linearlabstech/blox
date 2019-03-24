@@ -17,7 +17,6 @@
     },
     "Epochs":50,
     "SaveEvery":50,
-    "BatchSize":32,
     "DataSet":"test.ds",
     "FileExt":".pt",
     "Verbose":true,

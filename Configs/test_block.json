@@ -1,0 +1,27 @@
+{
+    "Layers":[
+            {
+                "REPEAT":{
+                    "BLOCK":"AnotherBlock",
+                    "REPS":8
+                }
+            }
+    ],
+    "Notes":"",
+    "Name":"",
+    "DEFS":{
+            "BLOCKS":{
+                "AnotherBlock": [
+                    {
+                        "Linear":{
+                            "in_features":64,
+                            "out_features":32
+                        }
+                    },
+                    {
+                        "Act":"ReLU"
+                    }
+                ]
+            },
+        }
+}

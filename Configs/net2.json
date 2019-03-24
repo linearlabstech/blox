@@ -1,22 +1,13 @@
-# B L O X
-### Neural Network building blocks. A simple and extensible wrapper around pytorch
-
-BLOX is a JSON based configuration library meant to easy and automate the development of neural network models using the PyTorch library.
-In can be applied in many different ways. For example, if you want to only define and compile a neural network:
-
-```python
-import json
-import torch
-from BLOX import Compile
-
-'''
-    The Compiler can consume either a dictionary 
-    or the path to a JSON net file, which is demonstrated below.
-'''
-json_string = """{
+{
     "Layers":[
             {
-                "DEF":"MyFirstBlock"
+                "REPEAT":{
+                    "BLOCK":"AnotherBlock",
+                    "REPS":8
+                }
+            },
+            {
+                "DEF":"PlasticLayer"
             },
             {
                 "Other":[
@@ -33,7 +24,7 @@ json_string = """{
     "Name":"",
     "DEFS":{
             "BLOCKS":{
-                "MyFirstBlock": [
+                "AnotherBlock": [
                     {
                         "Linear":{
                             "in_features":64,
@@ -46,17 +37,14 @@ json_string = """{
                 ]
             },
             "FILES":[
+                "test_block.json",
+                {
+                    "Module":"test_block",
+                    "Args":{
+                        "input_size":32,
+                        "output_size":128
+                    }
+                }
             ]
         }
-}"""
-
-loaded = json.loads(json_string)
-
-
-model = Compile(loaded)
-x = torch.randn(1,128)
-y = model(x)
-
-```
-
-
+}

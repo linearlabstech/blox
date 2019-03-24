@@ -1,0 +1,7 @@
+torch
+torchtext
+torchvision
+numpy
+yajl
+pillow
+tensorboardx

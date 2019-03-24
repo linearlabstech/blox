@@ -1,0 +1,29 @@
+{
+    "Nets":{
+        "ConfigNet":"net.json"
+    },
+    "Optimizer":{
+        "Params":[
+            "ConfigNet"
+        ],
+        "Kwargs":{
+            "lr":0.001
+        },
+        "Algo":"SGD"
+    },
+    "Loss":{
+        "Algo":"L1Loss",
+        "Kwargs":{}
+    },
+    "Epochs":50,
+    "SaveEvery":50,
+    "BatchSize":32,
+    "DataSet":"comments.ds",
+    "FileExt":"test.pt",
+    "Verbose":true,
+    "TensorboardX":{
+        "LogEvery":10,
+        "Dir":"runs/",
+        "SaveGraphs":true
+    }
+}

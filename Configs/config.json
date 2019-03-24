@@ -18,8 +18,8 @@
     "Epochs":50,
     "SaveEvery":50,
     "BatchSize":32,
-    "DataSet":"comments.ds",
-    "FileExt":"test.pt",
+    "DataSet":"test.ds",
+    "FileExt":".pt",
     "Verbose":true,
     "TensorboardX":{
         "LogEvery":10,

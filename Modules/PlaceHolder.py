@@ -16,11 +16,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
-from .DataSet import DataSet
-from .Common.Compiler import Compile
-from .Core.Trainer import Trainer
-from .Modules import *
-__version__   = '0.0.1'
-__author__    = 'Ted Troxell'
-__copyright__ = 'Copyright 2019, Linear Labs Technologies'
-__license__   = 'Apache 2.0'
+from torch import nn
+op_table = {
+    '*':'__mul__',
+    '/':'__div__',
+    '+':'__add__',
+    '-':'__sub__'
+}
+class PlaceHolder(nn.Module):
+    X = None
+    gate = True
+    op = ''
+    def __init__(self,operator='+'):
+        super(PlaceHolder,self).__init__()
+        self.op = operator
+
+    def __call__(self,X):
+        self.gate = not self.gate
+        if not self.gate:
+            self.X = X.clone()
+            return X
+        else:
+            Y = self.X
+            self.X = None
+            return getattr(X,op_table[self.op])(Y) if self.op in op_table else Y
+        

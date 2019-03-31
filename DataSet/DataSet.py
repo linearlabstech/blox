@@ -101,7 +101,7 @@ class DataSet:
         return self
 
     def train(self):
-                """
+        """
             switch to the training data
         """
         self.training = True
@@ -122,7 +122,7 @@ class DataSet:
         """
             By default only return the training set, but this canbe toggled with calling either '.dev()' or '.train()' methods 
         """
-        assert idx < self.size
+        # assert idx < self.size
         if self.training: return (self._train['inputs'][idx],self._train['targets'][idx].float())
         else: return (self._dev['inputs'][idx],self._dev['targets'][idx].float())
 

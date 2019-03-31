@@ -30,13 +30,17 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
-
+from torch import optim
 import os,yajl as json
 import inspect
 from importlib import import_module
+CURSOR_UP_ONE = '\x1b[1A'
+ERASE_LINE = '\x1b[2K'
+def ClearLine():
+    print(CURSOR_UP_ONE + ERASE_LINE + CURSOR_UP_ONE)
 
 def load(fname):
-    modules = [fname["Module"]]#open(fname,'r').read()
+    modules = [fname["IMPORTS"]]#open(fname,'r').read()
     table = {}
     args = fname["Args"]
     for i,module in enumerate(modules):
@@ -57,6 +61,7 @@ def GetOptim(models,f,kwargs):
     return getattr(optim,f)(models ,**kwargs)
 
 def PrintSummary(tls,ttl,dls,tdl,e,s):
+    for _ in range(12):ClearLine()
     print('\nEpoch Summary:')
     tls[e] = ttl
     dls[e] = tdl

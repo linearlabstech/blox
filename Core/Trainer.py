@@ -34,11 +34,46 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
+from ..Common.utils import *
+from ..Common.Compiler import Compile
+from ..DataSet.DataSet import DataSet
+# 
+TEXT = \
+"""
 
-from JSON2Net import Compile
+ .----------------. .----------------. .----------------. .----------------. 
+| .--------------. | .--------------. | .--------------. | .--------------. |
+| |   ______     | | |   _____      | | |     ____     | | |  ____  ____  | |
+| |  |_   _ \    | | |  |_   _|     | | |   .'    `.   | | | |_  _||_  _| | |
+| |    | |_) |   | | |    | |       | | |  /  .--.  \  | | |   \ \  / /   | |
+| |    |  __'.   | | |    | |   _   | | |  | |    | |  | | |    > `' <    | |
+| |   _| |__) |  | | |   _| |__/ |  | | |  \  `--'  /  | | |  _/ /'`\ \_  | |
+| |  |_______/   | | |  |________|  | | |   `.____.'   | | | |____||____| | |
+| |              | | |              | | |              | | |              | |
+| '--------------' | '--------------' | '--------------' | '--------------' |
+ '----------------' '----------------' '----------------' '----------------' 
+
+"""
+# TEXT = \
+# """
+# __/\\\\\\\\\\\\\____/\\\__________________/\\\\\_______/\\\_______/\\\_        
+#  _\/\\\/////////\\\_\/\\\________________/\\\///\\\____\///\\\___/\\\/__       
+#   _\/\\\_______\/\\\_\/\\\______________/\\\/__\///\\\____\///\\\\\\/____      
+#    _\/\\\\\\\\\\\\\\__\/\\\_____________/\\\______\//\\\_____\//\\\\______     
+#     _\/\\\/////////\\\_\/\\\____________\/\\\_______\/\\\______\/\\\\______    
+#      _\/\\\_______\/\\\_\/\\\____________\//\\\______/\\\_______/\\\\\\_____   
+#       _\/\\\_______\/\\\_\/\\\_____________\///\\\__/\\\_______/\\\////\\\___  
+#        _\/\\\\\\\\\\\\\/__\/\\\\\\\\\\\\\\\___\///\\\\\/______/\\\/___\///\\\_ 
+#         _\/////////////____\///////////////______\/////_______\///_______\///__
 
 
+# """
+writer = None
+SCALARS = {
+}
 
+def register_scalar(obj,key):
+    SCALARS[key] = writer.add_scalar
 
 class Trainer:
 
@@ -46,21 +81,28 @@ class Trainer:
         try: self.config = json.load(open(args.config,'r'))
         except: 
             if isinstance(args,dict): self.config = args
+            elif isinstance(args,str): self.config = json.load(open(args,'r'))
             else:raise ValueError('Incorrect data type passed to Trainer class')
+
+        if self.config['Verbose']:print(TEXT+('\n'*8))
+        # for _ in range(13):ClearLine()
     
     def build(self):pass
 
     def run(self):
         config = self.config
         nets = {}
-        for k,v in config['Nets'].items():nets[k] = Compile( json.load(open(config['Nets'][k],'r')) )
+        for k,v in config['Nets'].items():
+            nets[k] = Compile( json.loads(open(config['Nets'][k],'r').read() ) )
         opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
         loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
+        register_scalar(loss,'Loss')
         data_set = DataSet(config['DataSet'])
+        writer = SummaryWriter(config['TensorboardX']['Dir']) if 'Dir' in config['TensorboardX'] else None
         i,t = data_set[9]
-        for net,model in nets.items():
-            with SummaryWriter(comment=f' {net}') as w:
-                w.add_graph(model, i)
+        if writer and config['TensorboardX']['SaveGraph']:
+            for net,model in nets.items():
+                with SummaryWriter(comment=f' {net}') as w:w.add_graph(model, i)
             i = model( i )
         tlosses = np.zeros(config['Epochs'])
         dlosses = np.zeros(config['Epochs'])
@@ -78,6 +120,9 @@ class Trainer:
                 ttloss += l
                 l.backward()
                 opt.step()
+                if (idx%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
+                    for key in config['TensorboardX']['Log']:
+                        if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item(),(e+1)*data_set.size )
                 if (idx%(config['SaveEvery']+1))==0 and config['SaveEvery'] > 0:
                     for m,net in nets.items():
                         torch.save(net.state_dict(),'{}-{}'.format(m,config['FileExt']) )
@@ -86,11 +131,15 @@ class Trainer:
                 for idx,(inp,targ) in enumerate(tqdm.tqdm(data_set) if config['Verbose'] else data_set) :
                     try:
                         for net in nets.values():inp = net(inp)
+                        if (idx%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
+                            for key in config['TensorboardX']['Log']:
+                                if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item(),(e+1)*data_set.size )
                     except:continue
                     l = loss(inp,targ)
                     tdloss+= l
             
-            PrintSummary(tlosses,ttloss,dlosses,tdloss,e,config['Epochs'])
+            if config['Verbose']:PrintSummary(tlosses,ttloss,dlosses,tdloss,e,config['Epochs'])
+            
             
             
 

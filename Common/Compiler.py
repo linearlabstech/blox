@@ -20,7 +20,7 @@ import yajl as json
 
 from torch import nn
 
-from DEFS import *
+# from .DEFS import *
 
 def handle_linear(kwargs):
     return nn.Linear(**kwargs)
@@ -30,30 +30,35 @@ def handle_act(act):
         return getattr(nn,act)()
 
 def handle_(args):
-    (_type,kwargs) = args
-    return getattr(nn,_type)(**kwargs)
+    return nn.Sequential(*[getattr(nn,list(n.keys())[0])(**,list(n.values())[0]) for n in args])
 
 handlers = {
     "Linear":handle_linear,
     "Act":handle_act,
     "Other":handle_
 }
+from ..Modules.PlaceHolder import PlaceHolder
+
+ph = PlaceHolder()
+
+print(ph)
 
 def Compile(obj):
     if isinstance(obj,str):
         assert obj.endswith('.json'),'Config type not currently supported'
         obj = json.load(open(obj,'r'))
     layers = []
-    COMPONENTS = {}
-    for f in obj['DEFS']['MODULES']: #COMPONENTS.update( Compile(json.load(open(f,'r'))["BLOCKS"] ) )if isinstance(f,str) else 
-        if isinstance(f,dict):
-            COMPONENTS.update( load( f ) )
-    for k,fs in obj['DEFS']['BLOCKS'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
-    for layer in obj['LAYERS']:
+    COMPONENTS = {'PlaceHolder':ph}
+    if 'IMPORTS' in obj:
+        for f in obj['IMPORTS']: #COMPONENTS.update( Compile(json.load(open(f,'r'))["BLOCKS"] ) )if isinstance(f,str) else 
+            if isinstance(f,dict):
+                COMPONENTS.update( load( f ) )
+    for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
+    for layer in obj['BLOX']:
         if 'DEF' in layer:
             f = layer['DEF']
             # if the block is defined in another file,load and continue
-            if f.endswith('.json'):
+            if f.endswith('.json') or f.endswith('.blx'):
                 funcs = Compile( json.load( open(f,'r') ) )
             # check to see if the block is previously defined
             elif f in COMPONENTS:

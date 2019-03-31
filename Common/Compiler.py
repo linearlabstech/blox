@@ -30,7 +30,7 @@ def handle_act(act):
         return getattr(nn,act)()
 
 def handle_(args):
-    return nn.Sequential(*[getattr(nn,list(n.keys())[0])(**,list(n.values())[0]) for n in args])
+    return nn.Sequential(*[getattr(nn,list(n.keys())[0])(list(n.values())[0]) for n in args])
 
 handlers = {
     "Linear":handle_linear,

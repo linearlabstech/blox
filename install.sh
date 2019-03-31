@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Copyright (c) 2019, Linear Labs Technologies
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,4 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-cp -rf $1 /usr/local/lib/python3.6/dist-packages/`l /usr/local/lib/python3.*/dist-packages/ | grep BLOX`/Modules/
+
+python3 setup.py install
+chmod +x add2blx
+cp add2blx /bin/

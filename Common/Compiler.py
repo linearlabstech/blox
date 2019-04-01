@@ -19,7 +19,7 @@ limitations under the License.
 import yajl as json
 
 from torch import nn
-
+from ..Common.utils import load
 # from .DEFS import *
 
 def handle_linear(kwargs):
@@ -41,8 +41,6 @@ from ..Modules.PlaceHolder import PlaceHolder
 
 ph = PlaceHolder()
 
-print(ph)
-
 def Compile(obj):
     if isinstance(obj,str):
         assert obj.endswith('.json'),'Config type not currently supported'
@@ -50,30 +48,39 @@ def Compile(obj):
     layers = []
     COMPONENTS = {'PlaceHolder':ph}
     if 'IMPORTS' in obj:
-        for f in obj['IMPORTS']: #COMPONENTS.update( Compile(json.load(open(f,'r'))["BLOCKS"] ) )if isinstance(f,str) else 
-            if isinstance(f,dict):
-                COMPONENTS.update( load( f ) )
-    for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
-    for layer in obj['BLOX']:
-        if 'DEF' in layer:
-            f = layer['DEF']
-            # if the block is defined in another file,load and continue
-            if f.endswith('.json') or f.endswith('.blx'):
-                funcs = Compile( json.load( open(f,'r') ) )
-            # check to see if the block is previously defined
-            elif f in COMPONENTS:
-                funcs = COMPONENTS[f] 
+        for f in obj['IMPORTS']:
+            if isinstance(f,str):
+                if f.endswith('.blx') or f.endswith('.json'):
+                    _obj = json.load( open(f,'r') ) 
+                    obj_name = _obj['Name'] if 'Name' in _obj else  ''.join(f.split('.')[:-1])
+                    COMPONENTS.update( 
+                            { 
+                                obj_name:Compile( _obj ) 
+                            } 
+                        )
+            else: COMPONENTS.update( { ''.join(f['BLOX'].split('.')[-1] ): load( f ) }  )
+    if 'DEFS' in obj:
+        for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
+    if 'BLOX' in obj:
+        for layer in obj['BLOX']:
+            if 'DEF' in layer:
+                f = layer['DEF']
+                # if the block is defined in another file,load and continue
+                if f.endswith('.json') or f.endswith('.blx'):
+                    funcs = Compile( json.load( open(f,'r') ) )
+                # check to see if the block is previously defined
+                elif f in COMPONENTS:
+                    funcs = COMPONENTS[f] 
+                else:
+                    raise NotImplementedError('Function Block not defined in config file. Error @ {}'.format(f))
+                layers.append( funcs )
+            elif 'REPEAT' in layer:
+                b = layer['REPEAT']['BLOCK']
+                t = layer['REPEAT']['REPS']
+                layers.append( nn.Sequential(*[ c for _ in range(t) for c in COMPONENTS[b] ]) if isinstance(COMPONENTS[b],list) else COMPONENTS[b] ) 
             else:
-                raise NotImplementedError('Function Block not defined in config file. Error @ {}'.format(f))
-            layers.append( funcs )
-        elif 'REPEAT' in layer:
-            b = layer['REPEAT']['BLOCK']
-            t = layer['REPEAT']['REPS']
-            layers.append( nn.Sequential(*[ c for _ in range(t) for c in COMPONENTS[b] ]) if isinstance(COMPONENTS[b],list) else COMPONENTS[b] ) 
-        else:
-            for k,v in layer.items():
-                layers.append( handlers[k](v) )
-
+                for k,v in layer.items():
+                    layers.append( handlers[k](v) )
     return nn.Sequential(*layers)
         
 

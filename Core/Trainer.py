@@ -68,7 +68,7 @@ TEXT = \
 
 
 # """
-writer = None
+writer = SummaryWriter()
 SCALARS = {
 }
 
@@ -96,11 +96,12 @@ class Trainer:
             nets[k] = Compile( json.loads(open(config['Nets'][k],'r').read() ) )
         opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
         loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
-        register_scalar(loss,'Loss')
-        data_set = DataSet(config['DataSet'])
         writer = SummaryWriter(config['TensorboardX']['Dir']) if 'Dir' in config['TensorboardX'] else None
+        if writer:register_scalar(loss,'Loss')
+        data_set = DataSet(config['DataSet'])
+        
         i,t = data_set[9]
-        if writer and config['TensorboardX']['SaveGraph']:
+        if writer and config['TensorboardX']['SaveGraphs']:
             for net,model in nets.items():
                 with SummaryWriter(comment=f' {net}') as w:w.add_graph(model, i)
             i = model( i )

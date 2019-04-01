@@ -1,4 +1,0 @@
-#!/bin/bash
-python3 setup install
-chmod +x add2blx
-cp add2blx /bin/

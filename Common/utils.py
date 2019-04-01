@@ -39,19 +39,20 @@ ERASE_LINE = '\x1b[2K'
 def ClearLine():
     print(CURSOR_UP_ONE + ERASE_LINE + CURSOR_UP_ONE)
 
-def load(fname):
-    modules = [fname["IMPORTS"]]#open(fname,'r').read()
+def load(module):
+    args = {}
+    if isinstance(module,dict):
+        args = module['Args']
+        module = module['BLOX']
     table = {}
-    args = fname["Args"]
-    for i,module in enumerate(modules):
-        imported = import_module(module)
-        # print(inspect.getmembers(imported))
-        for c in inspect.getmembers(imported, inspect.isclass):
-            # print(c[0],getattr(imported,c[0]))
-            try:
-                table[c[0]] = c[1](**args)
-            except:
-                pass
+    imported = import_module(module)
+    # print(inspect.getmembers(imported))
+    for c in inspect.getmembers(imported, inspect.isclass):
+        # print(c[0],getattr(imported,c[0]))
+        try:
+            table[c[0]] = c[1](**args)
+        except:
+            pass
     return table
 
 def GetLoss(f,kwargs):

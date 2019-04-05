@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2019, Linear Labs Technologies
+Copyright (c) 2019, Linear Labs Technology
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,13 +16,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
-from .DataSet import DataSet
-from .Common.Compiler import Compile
-from .Core.Trainer import Trainer
-from .Core.PipeLine import PipeLine,Pipe
-from .RabbitMQ.Client import Client
-from .Modules import *
-__version__   = '0.0.1'
-__author__    = 'Ted Troxell'
-__copyright__ = 'Copyright 2019, Linear Labs Technologies'
-__license__   = 'Apache 2.0'
+from ..Common.utils import StrOrDict as sod,load
+from torch import nn
+class PreProcessor(nn.Module):
+    processors = []
+    def __init__(self,cfg):
+        super(PreProcessor,self).__init__()
+        cfg = sod(cfg)
+        self.steps = load(cfg['IMPORTS'])
+        self.order = cfg['BLOX']
+
+    def forward(self,x):
+        for o in self.order: x = 
+
+
+        

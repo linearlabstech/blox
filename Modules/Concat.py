@@ -16,13 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
-from .DataSet import DataSet
-from .Common.Compiler import Compile
-from .Core.Trainer import Trainer
-from .Core.PipeLine import PipeLine,Pipe
-from .RabbitMQ.Client import Client
-from .Modules import *
-__version__   = '0.0.1'
-__author__    = 'Ted Troxell'
-__copyright__ = 'Copyright 2019, Linear Labs Technologies'
-__license__   = 'Apache 2.0'
+from torch import nn
+import torch
+class Concat(nn.Module):
+    def __init__(self,axis=-1):
+        super(Concat,self).__init__()
+        self.axis=axis
+    def __call__(self,X):
+        return torch.cat(x,dim=self.axis)

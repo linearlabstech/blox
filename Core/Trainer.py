@@ -35,7 +35,7 @@ import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
 from ..Common.utils import *
-from ..Common.Compiler import Compile
+from ..Common.Compiler import Compile,cfg2nets
 from ..DataSet.DataSet import DataSet
 # 
 TEXT = \
@@ -91,9 +91,7 @@ class Trainer:
 
     def run(self):
         config = self.config
-        nets = {}
-        for k,v in config['Nets'].items():
-            nets[k] = Compile( json.loads(open(config['Nets'][k],'r').read() ) )
+        order, nets = cfg2nets(config)
         opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
         loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
         writer = SummaryWriter(config['TensorboardX']['Dir']) if 'Dir' in config['TensorboardX'] else None
@@ -102,9 +100,9 @@ class Trainer:
         
         i,t = data_set[9]
         if writer and config['TensorboardX']['SaveGraphs']:
-            for net,model in nets.items():
-                with SummaryWriter(comment=f' {net}') as w:w.add_graph(model, i)
-            i = model( i )
+            for net in order:
+                with SummaryWriter(comment=f' {nets[net]}') as w:w.add_graph(nets[net], i)
+            i = nets[net]( i )
         tlosses = np.zeros(config['Epochs'])
         dlosses = np.zeros(config['Epochs'])
         for e in range(config['Epochs']):
@@ -116,7 +114,7 @@ class Trainer:
                 opt.zero_grad()
                 if inp.shape[1] < 3: continue
                 # try:
-                for net in nets.values():inp = net(inp)
+                for net in order:inp = nets[net](inp)
                 l = loss(inp,targ)
                 ttloss += l
                 l.backward()

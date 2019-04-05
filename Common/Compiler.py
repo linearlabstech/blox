@@ -17,7 +17,7 @@ limitations under the License.
 
 """
 import yajl as json
-
+import torch
 from torch import nn
 from ..Common.utils import load
 # from .DEFS import *
@@ -39,13 +39,24 @@ handlers = {
 }
 from ..Modules.PlaceHolder import PlaceHolder
 
-ph = PlaceHolder()
+
+def cfg2nets(cfg):
+    nets = {}
+    order = []
+    for k,v in cfg['Nets'].items():
+        order.append(k)
+        nets[k] = Compile( json.loads(open(cfg['Nets'][k],'r').read() ) )
+    if "Load" in cfg:
+        for k,v in cfg['Load'].items():
+            nets[k].load_state_dict(torch.load(v))
+    return order,nets
 
 def Compile(obj):
     if isinstance(obj,str):
         assert obj.endswith('.json'),'Config type not currently supported'
         obj = json.load(open(obj,'r'))
     layers = []
+    ph = PlaceHolder()
     COMPONENTS = {'PlaceHolder':ph}
     if 'IMPORTS' in obj:
         for f in obj['IMPORTS']:

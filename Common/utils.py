@@ -36,6 +36,13 @@ import inspect
 from importlib import import_module
 CURSOR_UP_ONE = '\x1b[1A'
 ERASE_LINE = '\x1b[2K'
+
+
+def StrOrDict(cfg):
+    if isinstance(cfg,str):
+        if cfg.endswith('.json'): cfg = json.load(open(cfg,'r'))
+        else:cfg = json.loads(cfg)
+    return cfg
 def ClearLine():
     print(CURSOR_UP_ONE + ERASE_LINE + CURSOR_UP_ONE)
 

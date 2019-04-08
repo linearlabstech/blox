@@ -25,23 +25,19 @@ with open('requirements.txt','r') as fp:
 # class install(command.install.install):
 #     def run(self):
 #         command.install.install.run(self)
+
+p = find_packages()
+print(p)
 setup(
     name="BLOX",
-    packages=find_packages(),
-    version="0.0.1",
+    packages=p,
+    scripts=['blox' ],
     description="Neural Network building blocks. A simple and extensible wrapper around pytorch",
     long_description=long_description,
     # long_description_content_type="text/markdown",
-    url="https://linearlabs.ion",
+    url="https://linearlabs.io",
     author="Ted Troxell",
     # cmdclass={'install':install},
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "Operating System :: OS Independent",
-        "Framework :: IPython",
-        "Intended Audience :: Science/Research",
-        "Topic :: Scientific/Engineering :: NLP",
-        "Topic :: Scientific/Engineering :: CV"
-    ],
-    # install_requires=requirements, # some cannot be installed via easy_install and will need to do it in install script
+    zip_safe=False,
+    install_requires=requirements, # some cannot be installed via easy_install and will need to do it in install script
 )

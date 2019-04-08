@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Copyright (c) 2019, Linear Labs Technologies
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+"""
+from argparse import ArgumentParser as AP
+from BLOX import Server,Trainer,PipeLine,Pipe,Client
+from BLOX.Core.PipeLine import DummyClass
+from BLOX.DataSet import Imgs2DataSet
+from BLOX.Core.Preprocessor import ImgPreProcessor as ipp
+from BLOX.Core.PipeLine import PipeLine,Pipe
+parser = AP()
+import json,torch
+parser.add_argument('--train',action="store_true")
+parser.add_argument('--serve',action='store_true')
+parser.add_argument('--convert',action='store_true')
+parser.add_argument('--pipeline',action='store_true')
+parser.add_argument('-c','--config',default='config.json')
+from gunicorn.app.wsgiapp import run
+import os
+
+def create_pipeline(cfg):
+    cfg = cfg['Pipeline']
+    pipeline = PipeLine(cfg)
+    for pcfg in cfg['Pipes']:pipeline.register_pipe( Pipe(pcfg) )
+    print(pipeline)
+    pipeline.run()
+
+def build_server(cfg):
+    app = Server.create_app()
+    for ep in cfg['Deploy']:
+        ep['client'] = Client(**ep['client'])
+        if 'preprocess' not in ep:ep['preprocess'] = DummyClass()
+        else:ep['preprocess']
+        Server.register_endpoint(app=app,**ep)
+    Server.app.StandaloneApplication(app).run()
+
+def train_model(cfg):
+    cfg['Train']['Nets'] = cfg['Nets']
+    Trainer(cfg['Train']).run()
+
+def convert_dataset(cfg):
+    classes,data = Imgs2DataSet.convert(cfg['Data']['Convert']['Img']['LoadDir'])
+    with open(cfg['Data']['Convert']['Img']['SaveTo']+'.lbl','w') as fp:json.dump(classes,fp)
+    torch.save(data , cfg['Data']['Convert']['Img']['SaveTo'])
+
+def run_steps(cfg):
+    steps = {
+        'Deploy':build_server,
+        'Train':train_model,
+        'Data':convert_dataset,
+        'Pipeline':create_pipeline
+    }
+    if 'Process' in cfg:
+        assert not ('Pipeline' in cfg['Process'] and 'Deploy' in cfg['Process']), 'You cannot deploy an endpoint and pipeline in the same Process!'
+        for step in cfg['Process']: steps[step](cfg)
+
+def main():
+    args = parser.parse_args()
+    cfg = json.load(open(os.getcwd()+'/'+args.config,'r'))
+    if args.serve:
+        build_server(cfg)
+    elif args.train:
+        train_model(cfg)
+    elif args.convert:
+        convert_dataset(cfg)
+    elif args.pipeline:
+        create_pipeline(cfg)
+    else:
+        run_steps(cfg)
+
+if __name__ =='__main__':
+    main()
+
+
+
+
+

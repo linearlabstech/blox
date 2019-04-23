@@ -75,8 +75,6 @@ SCALARS = {
 def register_scalar(obj,key):
     SCALARS[key] = writer.add_scalar
 
-def get_acc(curr_acc,idx,y,yhat):
-
 
 class Trainer:
 

@@ -70,9 +70,11 @@ def Compile(obj):
                                 obj_name:Compile( _obj ) 
                             } 
                         )
-            else: COMPONENTS.update( { ''.join(f['BLOX'].split('.')[-1] ): load( f ) }  )
+                else: 
+                    COMPONENTS.update( load( f )  )
     if 'DEFS' in obj:
-        for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
+        if 'BLOX' in obj['DEFS']:
+            for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
     if 'BLOX' in obj:
         for layer in obj['BLOX']:
             if 'MODULE' in layer:

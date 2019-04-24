@@ -31,12 +31,12 @@ import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch import optim
-import os,yajl as json
+import os,yajl as json,sys
 import inspect
 from importlib import import_module
 CURSOR_UP_ONE = '\x1b[1A'
 ERASE_LINE = '\x1b[2K'
-
+sys.path.append(os.getcwd())
 
 def StrOrDict(cfg):
     if isinstance(cfg,str):
@@ -48,12 +48,15 @@ def ClearLine():
 
 
 def load_dynamic_modules(module):
-    imported = import_module(module)
+    try:
+        imported = import_module(module)
+    except:
+        imported = __import__(module)
     table = {}
     for c in inspect.getmembers(imported, inspect.ismodule):
         try:
             table[c[0]] = getattr(c[1],c[0])
-        except:pass
+        except Exception as e:pass
     return table
     
 def load(module):
@@ -66,8 +69,7 @@ def load(module):
     for c in inspect.getmembers(imported, inspect.isclass):
         try:
             table[c[0]] = c[1](**args)
-        except:
-            pass
+        except Exception as e:pass
     return table
 
 def GetLoss(f,kwargs):

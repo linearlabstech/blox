@@ -126,7 +126,7 @@ class Trainer:
                 acc += (1. if inp.argmax() == targ.argmax() else 0.) / float(idx+1)
                 if (idx%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
                     for key in config['TensorboardX']['Log']:
-                        if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,(e+1)*data_set.size )
+                        if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,idx+((e+1)*data_set.size) )
                 if (idx%(config['SaveEvery']+1))==0 and config['SaveEvery'] > 0:
                     for m,net in nets.items():
                         torch.save(net.state_dict(),'{}-{}'.format(m,config['FileExt']) )
@@ -137,7 +137,7 @@ class Trainer:
                         for net in nets.values():inp = net(inp)
                         if (idx%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
                             for key in config['TensorboardX']['Log']:
-                                if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,(e+1)*data_set.size )
+                                if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,idx+((e+1)*data_set.size) )
                     except:continue
                     l = loss(inp,targ)
                     tdloss+= l

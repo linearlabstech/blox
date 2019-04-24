@@ -85,6 +85,8 @@ def Compile(obj):
                 # check to see if the block is previously defined
                 elif f in COMPONENTS:
                     funcs = COMPONENTS[f]
+                elif f in PREDEFINED:
+                    funcs = PREDEFINED[f]()
                 else:
                     raise NotImplementedError('Function Block not defined in config file. Error @ {}'.format(f))
                 layers.append( funcs )

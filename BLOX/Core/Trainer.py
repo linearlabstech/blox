@@ -98,7 +98,7 @@ class Trainer:
         writer = SummaryWriter(config['TensorboardX']['Dir']) if 'Dir' in config['TensorboardX'] else None
         if writer:
             register_scalar(loss,'Loss')
-            register_scalar(get_acc,'Acc')
+            register_scalar(None,'Acc')
         data_set = DataSet(config['DataSet'])
         
         i,t = data_set[9]

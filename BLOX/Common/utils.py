@@ -51,7 +51,9 @@ def load_dynamic_modules(module):
     imported = import_module(module)
     table = {}
     for c in inspect.getmembers(imported, inspect.ismodule):
-        table[c[0]] = c[1]
+        try:
+            table[c[0]] = getattr(c[1],c[0])
+        except:pass
     return table
     
 def load(module):

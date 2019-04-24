@@ -137,7 +137,7 @@ class Trainer:
                         for net in nets.values():inp = net(inp)
                         if (idx%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
                             for key in config['TensorboardX']['Log']:
-                                if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item(),(e+1)*data_set.size )
+                                if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,(e+1)*data_set.size )
                     except:continue
                     l = loss(inp,targ)
                     tdloss+= l

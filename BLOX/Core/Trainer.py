@@ -104,7 +104,7 @@ class Trainer:
         i,t = data_set[9]
         if writer and config['TensorboardX']['SaveGraphs']:
             for net in order:
-                with SummaryWriter(comment=f' {net}') as w:w.add_graph(nets[net], i)
+                with SummaryWriter(comment=' {}'.format(net)) as w:w.add_graph(nets[net], i)
             i = nets[net]( i )
         tlosses = np.zeros(config['Epochs'])
         dlosses = np.zeros(config['Epochs'])
@@ -116,10 +116,10 @@ class Trainer:
             tdloss = 0
             for idx,(inp,targ) in enumerate(tqdm.tqdm(data_set) if config['Verbose'] else data_set) :
                 opt.zero_grad()
-                if inp.shape[1] < 3: continue
+                #if inp.shape[1] < 3: continue
                 # try:
                 for net in order:inp = nets[net](inp)
-                l = loss(inp,targ)
+                l = loss(inp,targ.long())
                 ttloss += l
                 l.backward()
                 opt.step()
@@ -139,7 +139,7 @@ class Trainer:
                             for key in config['TensorboardX']['Log']:
                                 if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,idx+((e+1)*data_set.size) )
                     except:continue
-                    l = loss(inp,targ)
+                    l = loss(inp,targ.long())
                     tdloss+= l
             
             if config['Verbose']:PrintSummary(tlosses,ttloss,dlosses,tdloss,e,config['Epochs'])

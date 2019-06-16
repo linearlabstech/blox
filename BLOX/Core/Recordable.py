@@ -6,9 +6,6 @@ METRICS = dict(inspect.getmembers(_metrics))
 del METRICS['ConfusionMatrix']
 del METRICS['Accuracy']
 
-
-
-
 import numpy as np
 from socket import error as socket_error
 from BLOX.Common.utils import try_func
@@ -26,11 +23,6 @@ def roc(y_h,y):
         since we support multiclass classification and sklearn only does binary classification,
         we will have to use whether the prediction was correct or not
     '''
-    # y = [1 if y[i].argmax() == np.argmax(y_h[i]) else 0  for i in range(len(y)) ]
-    # for i in range(len(y)):print(y[i].argmax(), np.argmax(y_h[i]))
-    # exit()
-    # print(len(y),np.asarray(y_h).max(axis=1).shape)
-    # print(y)
     return metrics.roc_auc_score(np.asarray(y),np.asarray(y_h).max(axis=1))
 
 def f1_macro(y_h,y):
@@ -46,7 +38,6 @@ def cc(y_h,y, n_classes = None):
     
     y_idx = np.argmax(y,axis=1)
     y_h_idx = np.argmax(y_h,axis=1)
-    # y_copy = np.zeros(y.shape)
     clf_scores = []
     mpvs = []
     fops = []

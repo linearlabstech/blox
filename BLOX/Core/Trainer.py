@@ -155,7 +155,6 @@ class Trainer:
         config = self.config
         torch.cuda.empty_cache()
         policy_net = cfg2nets(config)
-        # opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in nets[m].parameters() ],config['Optimizer']['Algo'].replace('DQN',''),config['Optimizer']['Kwargs'] )
         loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
         env = GetAction(config['Environment'])
         writer = SummaryWriter(config['TensorboardX']['Dir']) if 'Dir' in config['TensorboardX'] else None
@@ -219,7 +218,7 @@ class Trainer:
 
         add_metrics = {}
         @evaluator.on(Events.ITERATION_COMPLETED)
-        def log_training_loss(engine):
+        def log_training_metrics(engine):
             i = engine.state.iteration 
             if (i%(config['TensorboardX']['LogEvery']))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
                 for m in engine.state.metrics.keys():

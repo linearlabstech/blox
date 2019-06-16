@@ -28,8 +28,6 @@ import torch.nn.functional as F
 import torchvision.models as models
 import yajl as json
 from tensorboardX import SummaryWriter
-# from .build_vocab import Vocabulary
-# from .model import EncoderCNN, DecoderRNN
 import random
 from PIL import Image
 import torch
@@ -50,12 +48,6 @@ Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-def get_metric(m,loss,n_classes):
-    # from BLOX.Core.Recordable import METRICS
-    if m == "Loss":return METRICS[m](loss)
-    elif m =='ConfusionMatrix':return METRICS[m](n_classes)
-    else: return METRICS[m]()
 
 from BLOX.Common.Strings import TITLE as TEXT
 from BLOX.Core.Recordable import METRICS,ADDITIONAL_METRICS,Vizzy

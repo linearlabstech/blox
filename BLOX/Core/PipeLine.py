@@ -34,9 +34,9 @@ class DummyClass:
         return x
 
 class ParallelPipe:
-    models = {}
     def __init__(self,cfg):
         cfg = sod(cfg)
+        self.models = {}
         for k,v in cfg.items():
             self.models[k] = Compile( json.loads(open(cfg[k],'r').read() ) )
     def load(self,files):
@@ -62,14 +62,15 @@ class ParallelPipe:
         return self.__str__()
 
 class Pipe:
-    models={}
     def __init__(self,cfg):
         cfg = sod(cfg)
         self.cfg = cfg
         self.order = []
-        for k,v in cfg['Nets'].items():
+        self.models = {}
+        for k,v in cfg.items():
+            if "Load" in k:continue
             self.order.append(k)
-            self.models[k] = Compile( json.loads(open(cfg['Nets'][k],'r').read() ) ).eval() if isinstance(cfg['Nets'][k],str) else ParallelPipe( cfg['Nets'][k] )
+            self.models[k] = Compile( json.loads(open(cfg[k],'r').read() ) ).eval() if isinstance(cfg[k],str) else ParallelPipe( cfg[k] )
         if "Load" in cfg:
             for k,v in cfg['Load'].items():
                 try:
@@ -94,13 +95,12 @@ class Pipe:
         return s
 
 class PipeLine:
-
-    pipes = []
-    threads = []
-    running = False
     backend = 'rmq'
-    def __init__(self,cfg):
-        self.cfg = sod(cfg)
+    def __init__(self,cfg=None):
+        self.pipes = []
+        self.threads = []
+        self.running = False
+        if cfg:self.cfg = sod(cfg)
 
     def __exit__(self):
         self.close()
@@ -121,6 +121,11 @@ class PipeLine:
                 t.close()
         self.running = False
 
+    def __call__(self,x):
+        for f in self.pipes:
+            x = f(x)
+        return x
+
     def run(self):
         self.running = True
         self.threads = []
@@ -133,6 +138,7 @@ class PipeLine:
         for p in pipes:self.register_pipe(p)
 
     def register_pipe(self,pipe):
-        assert isinstance(pipe,Pipe), 'the pipe you want to add to the PipeLine is not a Pipe!'
+        assert isinstance(pipe,(Pipe,ParallelPipe)), 'the pipe you want to add to the PipeLine is not a Pipe!'
         self.pipes.append(pipe)
+        return self
 

@@ -20,6 +20,6 @@ import random,torch
 
 def GenRandDatSet(input_size=128,output_size=128,size=500):
     return {
-        'inputs' :[torch.randn(1, input_size) for _ in range(size)]
-        'targets':[torch.randn(1,output_size) for _ in range(size)]
+        'inputs' :[torch.randn(1, input_size) for _ in range(size)],
+        'targets':[torch.cauchy_(1,output_size) for _ in range(size)]
     }

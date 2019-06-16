@@ -19,16 +19,16 @@ limitations under the License.
 import argparse
 import torch
 import tqdm
+import math
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 import torchvision.models as models
 import yajl as json
 from tensorboardX import SummaryWriter
-# from .build_vocab import Vocabulary
-# from .model import EncoderCNN, DecoderRNN
-
+import random
 from PIL import Image
 import torch
 import torch.nn as nn
@@ -37,43 +37,26 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from ..Common.utils import *
 from ..Common.Compiler import Compile,cfg2nets
 from ..DataSet.DataSet import DataSet
-# 
-TEXT = \
-"""
+from BLOX.Modules.ReplayMemory import ReplayMemory
+from collections import namedtuple
+from itertools import count
 
- .----------------. .----------------. .----------------. .----------------. 
-| .--------------. | .--------------. | .--------------. | .--------------. |
-| |   ______     | | |   _____      | | |     ____     | | |  ____  ____  | |
-| |  |_   _ \    | | |  |_   _|     | | |   .'    `.   | | | |_  _||_  _| | |
-| |    | |_) |   | | |    | |       | | |  /  .--.  \  | | |   \ \  / /   | |
-| |    |  __'.   | | |    | |   _   | | |  | |    | |  | | |    > `' <    | |
-| |   _| |__) |  | | |   _| |__/ |  | | |  \  `--'  /  | | |  _/ /'`\ \_  | |
-| |  |_______/   | | |  |________|  | | |   `.____.'   | | | |____||____| | |
-| |              | | |              | | |              | | |              | |
-| '--------------' | '--------------' | '--------------' | '--------------' |
- '----------------' '----------------' '----------------' '----------------' 
-
-"""
-# TEXT = \
-# """
-# __/\\\\\\\\\\\\\____/\\\__________________/\\\\\_______/\\\_______/\\\_        
-#  _\/\\\/////////\\\_\/\\\________________/\\\///\\\____\///\\\___/\\\/__       
-#   _\/\\\_______\/\\\_\/\\\______________/\\\/__\///\\\____\///\\\\\\/____      
-#    _\/\\\\\\\\\\\\\\__\/\\\_____________/\\\______\//\\\_____\//\\\\______     
-#     _\/\\\/////////\\\_\/\\\____________\/\\\_______\/\\\______\/\\\\______    
-#      _\/\\\_______\/\\\_\/\\\____________\//\\\______/\\\_______/\\\\\\_____   
-#       _\/\\\_______\/\\\_\/\\\_____________\///\\\__/\\\_______/\\\////\\\___  
-#        _\/\\\\\\\\\\\\\/__\/\\\\\\\\\\\\\\\___\///\\\\\/______/\\\/___\///\\\_ 
-#         _\/////////////____\///////////////______\/////_______\///_______\///__
+from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 
 
-# """
-writer = SummaryWriter()
-SCALARS = {
-}
+Transition = namedtuple('Transition',
+                        ('state', 'action', 'next_state', 'reward'))
 
-def register_scalar(obj,key):
-    SCALARS[key] = writer.add_scalar
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
+from BLOX.Core.Recordable import METRICS,ADDITIONAL_METRICS,Vizzy
+
+def get_metric(m,loss,n_classes):
+    # from BLOX.Core.Recordable import METRICS
+    if m == "Loss":return METRICS[m](loss)
+    elif m =='ConfusionMatrix':return METRICS[m](n_classes)
+    else: return METRICS[m]()
 
 
 class Trainer:
@@ -86,70 +69,181 @@ class Trainer:
             else:raise ValueError('Incorrect data type passed to Trainer class')
 
         if self.config['Verbose']:print(TEXT+('\n'*8))
-        # for _ in range(13):ClearLine()
+  
+    def update(self,opt,order,nets,config):
+        if 'ClipGradient' in config:
+            if config['ClipGradient'] > 0:
+                for o in order:torch.nn.utils.clip_grad_norm_(nets[o].parameters(), config['ClipGradient'])
+        opt.step()
     
-    def build(self):pass
-
-    def run(self):
+    def run_qepoch(self,memory,opt,policy_net,target_net,loss,writer,env,e):
         config = self.config
-        order, nets = cfg2nets(config)
-        opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
+        BATCH_SIZE = 2
+        GAMMA = 0.999
+        EPS_START = 0.9
+        EPS_END = 0.05
+        EPS_DECAY = 200
+        def select_action(state,steps_done,policy_net):
+            GAMMA = 0.999
+            EPS_START = 0.9
+            EPS_END = 0.05
+            EPS_DECAY = 200
+            sample = random.random()
+            eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+                math.exp(-1. * steps_done / EPS_DECAY)
+            steps_done += 1
+            if sample > eps_threshold:
+                with torch.no_grad():
+                    # t.max(1) will return largest column value of each row.
+                    # second column on max result is index of where max element was
+                    # found, so we pick action with the larger expected reward.
+                    y = policy_net(state)
+                    return (y.argmax() - (env.n_actions/2) ).view(1,1).long()
+            else:
+                return torch.tensor([[random.randrange( env.n_actions )]], dtype=torch.long)
+        last_state = env.get_state()
+        curr_state = env.get_state()
+        state = curr_state - last_state
+        for i in tqdm.tqdm(range(len(env)) if config['Verbose'] else range(len(env)-1)):
+            
+            action = select_action(state,i,policy_net)
+            _, reward, done, _ = env.step(action.item())
+            reward = torch.tensor([reward])
+            if not done:
+                next_state = env.get_state() #
+            else:
+                next_state = curr_state - last_state
+                env.reset()
+
+            memory.push(state, action, next_state, reward)
+
+            state = next_state
+            
+            if len(memory) > BATCH_SIZE:
+
+                transitions = memory.sample(BATCH_SIZE)
+                # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
+                # detailed explanation). This converts batch-array of Transitions
+                # to Transition of batch-arrays.
+                batch = Transition(*zip(*transitions))
+
+                non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                                batch.next_state)), dtype=torch.uint8)
+                non_final_next_states = torch.cat([s for s in batch.next_state
+                                                            if s is not None])
+                state_batch = torch.cat(batch.state)
+                action_batch = torch.cat(batch.action)
+                reward_batch = torch.cat(batch.reward)
+                state_action_values = (policy_net(state_batch) )#.gather(0, action_batch) 
+                next_state_values = torch.zeros(BATCH_SIZE)
+                next_state_values[non_final_mask] = (target_net(non_final_next_states) ).detach().argmax(2).view(-1).float()
+                # Compute the expected Q values
+                expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+                
+                l = loss(state_action_values, expected_state_action_values.unsqueeze(1))
+                opt.zero_grad()
+                l.backward()
+                if (i%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
+                    for key in config['TensorboardX']['Log']:
+                        if hasattr(env,key):
+                            SCALARS[key]('{}'.format(key),float(getattr(env,key)) ,i+(e*len(env)) )
+                opt.step()
+
+
+    def train_qlearners(self):
+
+        config = self.config
+        torch.cuda.empty_cache()
+        policy_net = cfg2nets(config)
+        # opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in nets[m].parameters() ],config['Optimizer']['Algo'].replace('DQN',''),config['Optimizer']['Kwargs'] )
         loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
+        env = GetAction(config['Environment'])
         writer = SummaryWriter(config['TensorboardX']['Dir']) if 'Dir' in config['TensorboardX'] else None
         if writer:
             register_scalar(loss,'Loss')
             register_scalar(None,'Acc')
-        data_set = DataSet(config['DataSet'])
+            for w in config['TensorboardX']['Log']:
+                register_scalar(None,w)
         
-        i,t = data_set[9]
-        if writer and config['TensorboardX']['SaveGraphs']:
-            for net in order:
-                with SummaryWriter(comment=' {}'.format(net)) as w:w.add_graph(nets[net], i)
-            i = nets[net]( i )
+
+        target_net = policy_net
+        target_net.load_state_dict(policy_net.state_dict())
+        target_net.eval()
+        env.n_actions =  policy_net[-2][-1].out_features
+        opt =  GetOptim( policy_net.parameters(),config['Optimizer']['Algo'].replace('DQN',''),config['Optimizer']['Kwargs'] )
+
+        memory = ReplayMemory(len(env))
+
+        for e in range(config['Epochs']):
+            self.run_qepoch(memory,opt,policy_net,target_net,loss,writer,env,e)
+            target_net.load_state_dict(policy_net.state_dict())
+            torch.save(policy_net.state_dict(),'{}{}'.format(order[0],config['FileExt']) )
+            env.reset()
+            memory.clear()
+            ClearLine()
+    
+    def train_ganlearners():pass
+
+    def run(self):
+        if 'dqn' in self.config['Optimizer']['Algo'][:3].lower():
+            self.train_qlearners()
+            return
+        elif 'gan' in self.config['Optimizer']['Algo'][:3].lower():
+            self.train_ganlearners()
+            return
+        config = self.config
+        torch.cuda.empty_cache()
+
+        model = cfg2nets(config)
+        opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in model.nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
+        loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
+        data = DataLoader(DataSet(config['DataSet']), batch_size=config['BatchSize'] if 'BatchSize' in config else 1,shuffle=True )
+        writer = SummaryWriter(config['TensorboardX']['Dir'] if 'Dir' in config['TensorboardX'] else 'runs')
+
         tlosses = np.zeros(config['Epochs'])
         dlosses = np.zeros(config['Epochs'])
-        for e in range(config['Epochs']):
-            acc = 0
-            if config['Verbose']:print('[{}] Epoch training..'.format(e+1))
-            data_set.train()
-            ttloss = 0
-            tdloss = 0
-            for idx,(inp,targ) in enumerate(tqdm.tqdm(data_set) if config['Verbose'] else data_set) :
-                opt.zero_grad()
-                #if inp.shape[1] < 3: continue
-                # try:
-                for net in order:inp = nets[net](inp)
-                l = loss(inp,targ.long())
-                ttloss += l
-                l.backward()
-                opt.step()
-                acc += (1. if inp.argmax() == targ.argmax() else 0.) / float(idx+1)
-                if (idx%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
-                    for key in config['TensorboardX']['Log']:
-                        if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,idx+((e+1)*data_set.size) )
-                if (idx%(config['SaveEvery']+1))==0 and config['SaveEvery'] > 0:
-                    for m,net in nets.items():
-                        torch.save(net.state_dict(),'{}-{}'.format(m,config['FileExt']) )
-            data_set.dev()
-            with torch.no_grad():
-                for idx,(inp,targ) in enumerate(tqdm.tqdm(data_set) if config['Verbose'] else data_set) :
-                    try:
-                        for net in nets.values():inp = net(inp)
-                        if (idx%(config['TensorboardX']['LogEvery']+1))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
-                            for key in config['TensorboardX']['Log']:
-                                if key in SCALARS:SCALARS[key]('{} {}'.format('train:' if data_set.training else 'dev:',  key),l.item() if key == 'Loss' else acc ,idx+((e+1)*data_set.size) )
-                    except:continue
-                    l = loss(inp,targ.long())
-                    tdloss+= l
-            
-            if config['Verbose']:PrintSummary(tlosses,ttloss,dlosses,tdloss,e,config['Epochs'])
-            
-            
-            
 
+        trainer = create_supervised_trainer(model, opt, loss, device=device,output_transform=lambda x, y, y_pred, loss: (y_pred, y,))
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='LL Training Application')
-    parser.add_argument('-c','--config', default='config.json')
-    args = parser.parse_args()
-    main(args)
+        for m in config['TensorboardX']['Log']:
+            if m not in METRICS:continue
+            mtrc = get_metric(m,loss,16)
+            mtrc.attach(trainer,m)
+
+        # evaluator = create_supervised_evaluator(model,
+        #                                         metrics=dict(zip( config['TensorboardX']['Log'], [ get_metric(m,loss,16) for m in config['TensorboardX']['Log']  if m in METRICS] )),
+        #                                         device=device)
+        pbar = tqdm.tqdm(
+            initial=0, leave=False, total=len(data),
+        )
+
+        add_metrics = {}
+        @evaluator.on(Events.ITERATION_COMPLETED)
+        def log_training_loss(engine):
+            i = engine.state.iteration 
+            if (i%(config['TensorboardX']['LogEvery']))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
+                for m in engine.state.metrics.keys():
+                    if m in METRICS:writer.add_scalar(m, engine.state.metrics[m], engine.state.iteration)
+                try:
+                    for m in config['TensorboardX']['Log']:
+
+                        if m in ADDITIONAL_METRICS:
+                            if m not in add_metrics:
+                                add_metrics[m] = {
+                                    'y_h':[],
+                                    'y':[]
+                                }
+                            add_metrics[m]['y'].append( engine.state.output[1].view(-1).numpy() )
+                            add_metrics[m]['y_h'].append( engine.state.output[0].view(-1).data.numpy() )
+                except:pass
+
+                pbar.update(config['TensorboardX']['LogEvery'])
+        try:
+            evaluator.run(data, max_epochs=1)
+        except:pass
+        pbar.close()
+        try:
+            for m in config['TensorboardX']['Log']:
+                if m in ADDITIONAL_METRICS:
+                    getattr(Vizzy,m)(Vizzy,ADDITIONAL_METRICS[m]( add_metrics[m]['y_h'],add_metrics[m]['y'] ))
+        except Exception as e:pass

@@ -35,8 +35,7 @@ class EncoderCNN(nn.Module):
         """
             Extract feature vectors from input images.
         """
-        with torch.no_grad():
-            features = self.resnet(images)
+        features = self.resnet(images)
         features = features.reshape(features.size(0), -1)
         try:
             features = self.bn(self.linear(features))

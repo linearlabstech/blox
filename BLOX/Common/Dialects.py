@@ -1,10 +1,15 @@
+
+'''
+Eventually we're going to support TF as well
+'''
+
 # import torch
 
 
-# TORCH = {
+# PT = {
 #     'MODULE':nn.Module
 # }
 
-# TENSORFLOW = {
+# TF = {
 
 # }

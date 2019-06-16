@@ -37,6 +37,22 @@ from importlib import import_module
 CURSOR_UP_ONE = '\x1b[1A'
 ERASE_LINE = '\x1b[2K'
 sys.path.append(os.getcwd())
+from gym import envs
+
+import BLOX.Modules
+
+def try_func(raze=False,emsg=False):
+    def decorate(f):
+
+        def applicator(*args, **kwargs):
+            try:
+                return f(*args,**kwargs)
+            except Exception as e:
+                if emsg:print( 'ERROR ATTEMPTING TO CALL {}\nError Msg: {}\n{}'.format(f,e,emsg) if isinstance(emsg,str) else 'ERROR ATTEMPTING TO CALL {}\nError Msg: {}'.format(f,e) )  
+                if raze:raise Exception(str(e))
+        return applicator
+
+    return decorate
 
 def StrOrDict(cfg):
     if isinstance(cfg,str):
@@ -71,6 +87,19 @@ def load(module):
             table[c[0]] = c[1](**args)
         except Exception as e:pass
     return table
+
+def GetEnv(action):
+    PREDEFINED = load_dynamic_modules('BLOX.Modules')
+    kwargs = {}
+    if isinstance(action,dict):
+        kwargs = action['Kwargs']
+        action = action['Class']
+    if hasattr(envs,action):return getattr(envs,action)(**kwargs)
+    elif action in PREDEFINED:return PREDEFINED[action](**kwargs)
+    else: raise NameError('No action {} found'.format(action))
+
+def GetAction(action):
+    return GetEnv(action)
 
 def GetLoss(f,kwargs):
     return getattr(nn,f)(**kwargs)

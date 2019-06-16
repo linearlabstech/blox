@@ -20,6 +20,9 @@ import torch,numpy
 
 
 class Jsonify:
+    '''
+        easily convert data to json serializable format
+    '''
 
     def __init__(self):pass
 

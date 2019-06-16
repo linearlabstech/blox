@@ -16,12 +16,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
+import torch
 from torch import nn
+import math
 
-class Flatten(nn.Module):
 
+class Swish(nn.Module):
+    """ Swish activation function """
     def __init__(self):
-        super(Flatten,self).__init__()
+        super(Swish,self).__init__()
 
-    def __call__(self,x):
-        return x.view(-1)
+    def forward(self,x):return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+
+class GELU(nn.Module):
+    """
+        Implimentaiton od GAUSSIAN ERROR LINEAR UNITS
+        see: https://arxiv.org/pdf/1606.08415.pdf for details
+
+        I mean, in the paper they state they want a bernoulli distribution on droping connections, 
+        but we can just use the below formulation to approximate.
+    """
+    def __init__(self):super(GELU,self).__init__()
+
+    def forward(self,x):  x * torch.sigmoid( 1.702*x )

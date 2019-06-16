@@ -22,5 +22,5 @@ class Concat(nn.Module):
     def __init__(self,axis=-1):
         super(Concat,self).__init__()
         self.axis=axis
-    def __call__(self,X):
-        return torch.cat(x,dim=self.axis)
+    def __call__(self,x):
+        return torch.cat( x,dim=self.axis)

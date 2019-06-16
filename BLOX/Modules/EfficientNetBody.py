@@ -16,12 +16,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
+
+from efficientnet_pytorch import EfficientNet
+import torch
 from torch import nn
 
-class Flatten(nn.Module):
+class EfficientNetBody(nn.Module):
+    def __init__(self,mtype='efficientnet-b0'): 
+        super(EfficientNetBody,self).__init__()
+        self.model = EfficientNet.from_pretrained(mtype)
+        if torch.cuda.is_available():self.model.cuda()
+        else:self.model.cpu()
 
-    def __init__(self):
-        super(Flatten,self).__init__()
-
-    def __call__(self,x):
-        return x.view(-1)
+    def forward(self,x):
+        x = self.model.extract_features(x)
+        return x

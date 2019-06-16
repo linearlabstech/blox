@@ -18,7 +18,8 @@ limitations under the License.
 """
 from .DataSet import DataSet
 from .Common.Compiler import Compile 
-from .Core.Trainer import Trainer 
+from .Core.Trainer import Trainer
+from .Core.Tester import Tester
 from .Core.PipeLine import PipeLine,Pipe 
 from .RabbitMQ.Client import Client
 from .Modules import *

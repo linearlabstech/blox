@@ -17,11 +17,16 @@ limitations under the License.
 
 """
 from torch import nn
+import torch
 
-class Flatten(nn.Module):
+class Recurrence(nn.Module):
+    '''
+        This is meant for RNN integration in BLOX
+    '''
 
     def __init__(self):
-        super(Flatten,self).__init__()
+        super(Recurrence,self).__init__()
 
     def __call__(self,x):
-        return x.view(-1)
+        (y,h) = x
+        return torch.tensor(y).squeeze(1)

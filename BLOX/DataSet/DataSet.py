@@ -18,7 +18,7 @@ limitations under the License.
 """
 
 import torch
-
+from random import shuffle
 class DataSet:
     """
         load a saved pt state of shape:
@@ -35,33 +35,34 @@ class DataSet:
     n_classes = -1
     data = None
     _train = None
-    _dev = None
+    _eval = None
     training = True
-    def __init__(self,data,dev_split=.15,dtype='float'):
+    def __init__(self,data,eval_split=.15,dtype='float'):
         data = data if isinstance(data,dict) else torch.load(data)
         size = len(data['inputs'])
         self.type = dtype
-        dev_size = int(float(size)*dev_split)
-        self.tsize = size-dev_size
-        self.dsize = dev_size
+        eval_size = int(float(size)*eval_split)
+        self.tsize = size-eval_size
+        self.dsize = eval_size
+        self.tidxs = list(range(self.tsize))
+        self.didxs = list(range(self.dsize))
         self._train = {
-            'inputs':data['inputs'][dev_size:],
-            'targets':data['targets'][dev_size:]
+            'inputs':data['inputs'][eval_size:],
+            'targets':data['targets'][eval_size:]
         }
-        self._dev = {
-            'inputs':data['inputs'][:dev_size],
-            'targets':data['targets'][:dev_size]
+        self._eval = {
+            'inputs':data['inputs'][:eval_size],
+            'targets':data['targets'][:eval_size]
         }
         self.total_size = size
         self.size = self.tsize
+        if torch.cuda.is_available():self.cuda()
 
     def __len__(self):return self.size
     
     def shuffle(self):
-        shuffle(self._train['inputs'])
-        shuffle(self._train['targets'])
-        shuffle(self._dev['inputs'])
-        shuffle(self._dev['targets'])
+        shuffle(self.tidxs)
+        shuffle(self.didxs)
         return self
     
     def cuda(self):
@@ -69,34 +70,34 @@ class DataSet:
             Move data GPU
         """
         for i in range(self.tsize):
-            self._train['inputs'][i].cuda()
-            self._train['targets'][i].cuda()
+            self._train['inputs'][i] = self._train['inputs'][i].cuda()
+            self._train['targets'][i] = self._train['targets'][i].cuda()
         for i in range(self.dsize):
-            self._dev['inputs'][i].cuda()
-            self._dev['targets'][i].cuda()
+            self._eval['inputs'][i] = self._eval['inputs'][i].cuda()
+            self._eval['targets'][i] = self._eval['targets'][i].cuda()
 
     def cpu(self):
         """
             Move data CPU
         """
         for i in range(self.tsize):
-            self._train['inputs'][i].cpu()
-            self._train['targets'][i].cpu()
+            self._train['inputs'][i] = self._train['inputs'][i].cpu()
+            self._train['targets'][i] = self._train['targets'][i].cpu()
         for i in range(self.dsize):
-            self._dev['inputs'][i].cpu()
-            self._dev['targets'][i].cpu()
+            self._eval['inputs'][i] = self._eval['inputs'][i].cpu()
+            self._eval['targets'][i] = self._eval['targets'][i].cpu()
 
-    def dev(self):
+    def eval(self):
         """
-            switch to the development data
+            switch to the evalelopment data
         """
         self.training = False
         self.size = self.dsize
         return self
 
     def to(self, dtype):
-        dtype = stype.lower()
-        assert dtype in ['cpu','gpu'], 'Device type not supported'
+        dtype = dtype.lower()
+        assert dtype in ['cpu','gpu'], 'evalice type not supported'
         self.cpu() if dtype == 'cpu' else self.gpu()
         return self
 
@@ -114,16 +115,16 @@ class DataSet:
         if not fname:
             fname = 'data.{}.ds'.format(int(time.time()))
         torch.save({
-            'inputs': self._train['inputs']+self._dev['inputs'],
-            'targets': self._train['targets']+self._dev['targets']
+            'inputs': self._train['inputs']+self._eval['inputs'],
+            'targets': self._train['targets']+self._eval['targets']
         },fname)
 
     def __getitem__(self,idx):
         """
-            By default only return the training set, but this canbe toggled with calling either '.dev()' or '.train()' methods 
+            By default only return the training set, but this canbe toggled with calling either '.eval()' or '.train()' methods 
         """
         # assert idx < self.size
-        if self.training: return (self._train['inputs'][idx],self._train['targets'][idx].float())
-        else: return (self._dev['inputs'][idx],self._dev['targets'][idx].float())
+        if self.training: return (self._train['inputs'][ self.tidxs[idx] ],self._train['targets'][ self.tidxs[idx] ].float())
+        else: return (self._eval['inputs'][ self.didxs[idx] ],self._eval['targets'][self.didxs[idx]].float())
 
 

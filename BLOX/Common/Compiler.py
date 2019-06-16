@@ -16,17 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
+
 import yajl as json
 import torch
 from torch import nn
+from BLOX.Common import Functions as blx_fn
 from ..Common.utils import load,load_dynamic_modules
-
+# from BLOX.Common.Globals import *
+torch.manual_seed(1)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(1)
+    torch.backends.cudnn.deterministic = True
 def handle_linear(kwargs):
     return nn.Linear(**kwargs)
 
 def handle_act(act):
     if hasattr(nn,act):
         return getattr(nn,act)()
+    elif hasattr(blx_fn,act):return getattr(blx_fn,act)()
+    else: raise AttributeError("No activation function exists {}".format(act))
 
 def handle_(args):
     return nn.Sequential(*[getattr(nn,k)(**v) for n in args for k,v in n.items()])
@@ -38,6 +46,25 @@ handlers = {
 }
 from BLOX.Modules import *
 
+class Wrapper(nn.Module):
+
+    def __init__(self,order,nets):
+        super(Wrapper,self).__init__()
+        self.order = order
+        self.nets = nets
+
+    def __repr__(self):
+        return '\n'.join( repr(self.nets[o]) for o in self.order )
+    
+    def __str__(self):
+        return self.__repr__()
+    
+    def forward(self,x):
+        for o in self.order: 
+            x = self.nets[o](x)
+        return x
+
+
 
 def cfg2nets(cfg):
     nets = {}
@@ -48,9 +75,12 @@ def cfg2nets(cfg):
     if "Load" in cfg:
         for k,v in cfg['Load'].items():
             try:
-                nets[k].load_state_dict(torch.load(v))
-            except:pass
-    return order,nets
+                try:
+                    nets[k].load_state_dict(torch.load(v))
+                except:nets[k].load_state_dict(torch.load(v,map_location='cpu'))
+            except:
+                print('could not load {}'.format(k))
+    return Wrapper(order,nets)
 PREDEFINED = load_dynamic_modules('BLOX.Modules')
 
 def Compile(obj):
@@ -70,8 +100,14 @@ def Compile(obj):
                                 obj_name:Compile( _obj ) 
                             } 
                         )
+                    USER_DEFINED.update( 
+                            { 
+                                obj_name:Compile( _obj ) 
+                            } 
+                        )
                 else: 
                     COMPONENTS.update( load( f )  )
+                    USER_DEFINED.update( load( f )  )
     if 'DEFS' in obj:
         if 'BLOX' in obj['DEFS']:
             for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
@@ -99,7 +135,7 @@ def Compile(obj):
             else:
                 for k,v in layer.items():
                     layers.append( handlers[k](v) )
-    return nn.Sequential(*layers)
+    return nn.Sequential(*layers).cuda() if torch.cuda.is_available() else nn.Sequential(*layers)
         
 
 

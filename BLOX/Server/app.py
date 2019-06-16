@@ -28,7 +28,7 @@ from gunicorn import util
 
 class StandaloneApplication(BaseApplication):
 
-    def __init__(self, app, options=None):
+    def __init__(self, app, options={'bind': '%s:%s' % ('127.0.0.1', '5656')}):
         self.options = options or {}
         self.application = app
         super(StandaloneApplication, self).__init__()

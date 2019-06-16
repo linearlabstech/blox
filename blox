@@ -17,7 +17,7 @@ limitations under the License.
 
 """
 from argparse import ArgumentParser as AP
-from BLOX import Server,Trainer,PipeLine,Pipe,Client
+from BLOX import Server,Trainer,PipeLine,Pipe,Client,Tester
 from BLOX.Core.PipeLine import DummyClass
 from BLOX.DataSet import Imgs2DataSet
 from BLOX.Core.Preprocessor import ImgPreProcessor as ipp
@@ -25,6 +25,7 @@ from BLOX.Core.PipeLine import PipeLine,Pipe
 parser = AP()
 import json,torch
 parser.add_argument('--train',action="store_true")
+parser.add_argument('--test',action='store_true')
 parser.add_argument('--serve',action='store_true')
 parser.add_argument('--convert',action='store_true')
 parser.add_argument('--pipeline',action='store_true')
@@ -52,6 +53,15 @@ def train_model(cfg):
     cfg['Train']['Nets'] = cfg['Nets']
     Trainer(cfg['Train']).run()
 
+def test_model(cfg):
+    try:
+        cfg['Train']['Nets'] = cfg['Nets']
+        Tester(cfg['Train']).run()
+    except:
+        cfg['Test']['Nets'] = cfg['Nets']
+        Tester(cfg['Test']).run()
+
+
 def convert_dataset(cfg):
     classes,data = Imgs2DataSet.convert(cfg['Data']['Convert']['Img']['LoadDir'])
     with open(cfg['Data']['Convert']['Img']['SaveTo']+'.lbl','w') as fp:json.dump(classes,fp)
@@ -61,6 +71,7 @@ def run_steps(cfg):
     steps = {
         'Deploy':build_server,
         'Train':train_model,
+        'Test':test_model,
         'Data':convert_dataset,
         'Pipeline':create_pipeline
     }
@@ -75,6 +86,8 @@ def main():
         build_server(cfg)
     elif args.train:
         train_model(cfg)
+    elif args.test:
+        test_model(cfg)
     elif args.convert:
         convert_dataset(cfg)
     elif args.pipeline:

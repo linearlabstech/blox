@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 from BLOX.Modules.BayesianLinear import BayesianLinear
 from BLOX.Modules.Sparsemax import Sparsemax
-class BayeBlock(nn.Module):
+class BayesBlock(nn.Module):
     '''
         you can either pass in a compute block of bayesian layers or construct a list of layers all the same size
         The reason you'd want to pass a custome block would be to use different sizes and tricks

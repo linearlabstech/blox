@@ -38,6 +38,7 @@ from ..Common.utils import *
 from ..Common.Compiler import Compile,cfg2nets
 from ..DataSet.DataSet import DataSet
 from BLOX.Modules.ReplayMemory import ReplayMemory
+from BLOX.Common.Strings import TITLE as TEXT
 from collections import namedtuple
 from itertools import count
 
@@ -217,7 +218,7 @@ class Trainer:
         )
 
         add_metrics = {}
-        @evaluator.on(Events.ITERATION_COMPLETED)
+        @trainer.on(Events.ITERATION_COMPLETED)
         def log_training_metrics(engine):
             i = engine.state.iteration 
             if (i%(config['TensorboardX']['LogEvery']))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
@@ -237,8 +238,13 @@ class Trainer:
                 except:pass
 
                 pbar.update(config['TensorboardX']['LogEvery'])
+        @trainer.on(Events.EPOCH_COMPLETED)
+        def log_validation_results(engine):
+            # evaluator.run(val_loader)
+            # pbar.refresh()
+            pbar.n = pbar.last_print_n = 0
         try:
-            evaluator.run(data, max_epochs=1)
+            trainer.run(data, max_epochs=config['Epochs'])
         except:pass
         pbar.close()
         try:

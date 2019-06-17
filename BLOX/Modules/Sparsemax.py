@@ -26,8 +26,6 @@ Pytorch implementation of Sparsemax function from:
 -- André F. T. Martins, Ramón Fernandez Astudillo (http://arxiv.org/abs/1602.02068)
 """
 
-from __future__ import division
-
 import torch
 import torch.nn as nn
 

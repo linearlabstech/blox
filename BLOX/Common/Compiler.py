@@ -22,6 +22,7 @@ import torch
 from torch import nn
 from BLOX.Common import Functions as blx_fn
 from ..Common.utils import load,load_dynamic_modules
+from BLOX.Modules import *
 # from BLOX.Common.Globals import *
 torch.manual_seed(1)
 if torch.cuda.is_available():
@@ -38,13 +39,20 @@ def handle_act(act):
 
 def handle_(args):
     return nn.Sequential(*[getattr(nn,k)(**v) for n in args for k,v in n.items()])
+def handle_bayes(kwargs):
+    return BayesianLinear.BayesianLinear(**kwargs)
+
+def handle_bayes_block(kwargs):
+    return BayesBlock.BayesBlock(**kwargs)
 
 handlers = {
     "Linear":handle_linear,
     "Act":handle_act,
-    "Other":handle_
+    "Other":handle_,
+    "BayesianLinear":handle_bayes,
+    "BayesBlock":handle_bayes_block
 }
-from BLOX.Modules import *
+
 
 class Wrapper(nn.Module):
 

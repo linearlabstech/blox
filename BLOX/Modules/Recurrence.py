@@ -29,4 +29,4 @@ class Recurrence(nn.Module):
 
     def __call__(self,x):
         (y,h) = x
-        return torch.tensor(y).squeeze(1)
+        return (y).squeeze(1)

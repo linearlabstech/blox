@@ -197,7 +197,8 @@ class Trainer:
         model = cfg2nets(config)
         opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in model.nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
         loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
-        data = DataLoader(DataSet(config['DataSet']), batch_size=config['BatchSize'] if 'BatchSize' in config else 1,shuffle=True )
+        # data = DataLoader(DataSet(config['DataSet']), batch_size=config['BatchSize'] if 'BatchSize' in config else 1,shuffle=True )
+        data = DataSet(config['DataSet'])
         writer = SummaryWriter(config['TensorboardX']['Dir'] if 'Dir' in config['TensorboardX'] else 'runs')
 
         tlosses = np.zeros(config['Epochs'])
@@ -218,6 +219,7 @@ class Trainer:
         )
 
         add_metrics = {}
+        model(data[0][0])
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_training_metrics(engine):
             i = engine.state.iteration 

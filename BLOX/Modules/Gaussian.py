@@ -5,7 +5,7 @@ class Gaussian(torch.nn.Module):
     def __init__(self, mu, rho):
         super(Gaussian,self).__init__()
         self.mu = mu
-        self.rho = rho
+        self.rho = torch.nn.Parameter(rho)
         self.normal = torch.distributions.Normal(0,1)
     
     @property

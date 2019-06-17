@@ -42,5 +42,4 @@ class BayesianLinear(nn.Module):
             self.log_variational_posterior = self.weight(weight) + self.bias(bias)
         else:
             self.log_prior, self.log_variational_posterior = 0, 0
-            
         return F.linear(x, weight, bias)

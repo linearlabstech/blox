@@ -38,4 +38,4 @@ class GELU(nn.Module):
     """
     def __init__(self):super(GELU,self).__init__()
 
-    def forward(self,x):  x * torch.sigmoid( 1.702*x )
+    def forward(self,x): return x * torch.sigmoid( 1.702*x )

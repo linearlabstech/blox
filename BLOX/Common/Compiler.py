@@ -86,7 +86,7 @@ def cfg2nets(cfg):
                 try:
                     nets[k].load_state_dict(torch.load(v))
                 except:nets[k].load_state_dict(torch.load(v,map_location='cpu'))
-            except:
+            except Exception as e:
                 print('could not load {}'.format(k))
     return Wrapper(order,nets)
 PREDEFINED = load_dynamic_modules('BLOX.Modules')

@@ -9,6 +9,8 @@ class GMM(torch.nn.Module):
         self.pis = pis
         self.sigmas = sigmas
         self.mixtures = [Gaussian(0,sigma) for sigma in sigmas]
+        if torch.cuda.is_available():
+            for m in self.mixtures:m.cuda()
     
     def forward(self, x):
         probs = [  torch.exp( g(x) ) for g in self.mixtures ]

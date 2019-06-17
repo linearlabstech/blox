@@ -18,6 +18,8 @@ class BayesBlock(nn.Module):
         self.n_out = out_features
         self.n_smpl = n_samples
         self.layers = [ BayesianLinear(in_features,out_features) for _ in range(depth) ] if block == None else block
+        if torch.cuda.is_available():
+            for l in self.layers:l.cuda()
         self.act = getattr(nn,act)()
         self.out = Sparsemax() if sparse else nn.Softmax()
 

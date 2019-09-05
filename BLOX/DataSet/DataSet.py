@@ -19,6 +19,7 @@ limitations under the License.
 
 import torch
 from random import shuffle
+from BLOX.DataSet.TestSet import TestSet
 class DataSet:
     """
         load a saved pt state of shape:
@@ -37,6 +38,7 @@ class DataSet:
     _train = None
     _eval = None
     training = True
+    is_categorical = False
     def __init__(self,data,eval_split=.15,dtype='float'):
         data = data if isinstance(data,dict) else torch.load(data)
         size = len(data['inputs'])
@@ -46,53 +48,88 @@ class DataSet:
         self.dsize = eval_size
         self.tidxs = list(range(self.tsize))
         self.didxs = list(range(self.dsize))
-        self._train = {
+        self._train = TestSet({
             'inputs':data['inputs'][eval_size:],
             'targets':data['targets'][eval_size:]
-        }
-        self._eval = {
+        })
+        self._eval = TestSet({
             'inputs':data['inputs'][:eval_size],
             'targets':data['targets'][:eval_size]
-        }
+        })
         self.total_size = size
-        self.size = self.tsize
-        if torch.cuda.is_available():self.cuda()
+        self._size = self.tsize
+        self.idx = 0
+        self.bsz = 1
+        # if torch.cuda.is_available():self.cuda()
 
-    def __len__(self):return self.size
+    def __len__(self):return self.n
     
+    @property
+    def n(self):
+        return self.tsize if self.training else self.dsize
+
     def shuffle(self):
         shuffle(self.tidxs)
         shuffle(self.didxs)
         return self
+
+    # def __iter__ (self):
+    #     return self#iter( ((x,y) for (x,y) in self) )
+
+    # def __next__ (self):
+    #     try:
+    #         (x,y) = self._train.__next__() if self.training else self._eval.__next__()
+    #     except IndexError:
+    #         print('error')
+    #     self.idx += 1
+    #     return x,y
     
+    def batchify(self,bsz=64):
+        self.bsz = bsz
+        self.tsize = self.tsize // bsz
+        self.dsize = self.dsize // bsz
+        self._size = self.tsize if self.training else self.dsize
+        self._train.batchify(bsz)
+        self._eval.batchify(bsz)
+        self.tidxs = list(range( self.tsize ))
+        self.didxs = list(range( self.dsize ))
+        return self
+
+    @property
+    def x(self):
+        return self._train.x if self.training else self._eval.x
+    @property
+    def y(self):
+        return self._train.y if self.training else self._eval.y
+
     def cuda(self):
         """
             Move data GPU
         """
-        for i in range(self.tsize):
-            self._train['inputs'][i] = self._train['inputs'][i].cuda()
-            self._train['targets'][i] = self._train['targets'][i].cuda()
-        for i in range(self.dsize):
-            self._eval['inputs'][i] = self._eval['inputs'][i].cuda()
-            self._eval['targets'][i] = self._eval['targets'][i].cuda()
+        self._train.cuda()
+        self._eval.cuda()
+
+    def size(self):
+        return self._train.size() if self.training else self._eval.size()
 
     def cpu(self):
         """
             Move data CPU
         """
-        for i in range(self.tsize):
-            self._train['inputs'][i] = self._train['inputs'][i].cpu()
-            self._train['targets'][i] = self._train['targets'][i].cpu()
-        for i in range(self.dsize):
-            self._eval['inputs'][i] = self._eval['inputs'][i].cpu()
-            self._eval['targets'][i] = self._eval['targets'][i].cpu()
+        self._train.cpu()
+        self._eval.cpu()
 
     def eval(self):
         """
             switch to the evalelopment data
         """
         self.training = False
-        self.size = self.dsize
+        self._size = self.dsize
+        return self
+
+    def pad(self):
+        self._train.pad()
+        self._eval.pad()
         return self
 
     def to(self, dtype):
@@ -101,12 +138,29 @@ class DataSet:
         self.cpu() if dtype == 'cpu' else self.gpu()
         return self
 
+    def categorical(self):
+        if not self.is_categorical:
+            self._train.categorical()
+            self._eval.categorical()
+            self.is_categorical = True
+        return self
+
+    # def float(self):
+    #     self._data['inputs'].float()
+    #     self._data['targets'].float()
+    #     return self
+
+    # def long(self):
+    #     self._data['inputs'].long()
+    #     self._data['targets'].long()
+    #     return self
+
     def train(self):
         """
             switch to the training data
         """
         self.training = True
-        self.size = self.tsize
+        self._size = self.tsize
         return self
 
     def save(self,fname=None):
@@ -123,8 +177,8 @@ class DataSet:
         """
             By default only return the training set, but this canbe toggled with calling either '.eval()' or '.train()' methods 
         """
-        # assert idx < self.size
-        if self.training: return (self._train['inputs'][ self.tidxs[idx] ],self._train['targets'][ self.tidxs[idx] ].float())
-        else: return (self._eval['inputs'][ self.didxs[idx] ],self._eval['targets'][self.didxs[idx]].float())
+        assert idx <= self.n
+        if self.training: return self._train[ self.tidxs[idx] ]
+        else: return self._eval[ self.didxs[idx] ]
 
 

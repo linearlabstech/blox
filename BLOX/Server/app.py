@@ -42,11 +42,12 @@ class StandaloneApplication(BaseApplication):
     def load(self):
         return self.application
 
-def register_endpoint(app,url,name,client,arg,preprocess):
+def register_endpoint(app,url,name,client,arg,preprocess=None):
     def func():
         data = request.form.to_dict() 
         data = data if len(data) > 0 else request.get_json()
-        return jsonify({'resp':client(preprocess(data[arg] )).decode()} )
+        resp = client( preprocess(data[arg] ) if preprocess else data[arg]).decode()
+        return resp
     app.add_url_rule(
             url,
             name,

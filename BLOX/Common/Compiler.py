@@ -21,7 +21,7 @@ import yajl as json
 import torch
 from torch import nn
 from BLOX.Common import Functions as blx_fn
-from ..Common.utils import load,load_dynamic_modules
+from ..Common.utils import load,load_dynamic_modules,StrOrDict as sod
 from BLOX.Modules import *
 # from BLOX.Common.Globals import *
 torch.manual_seed(1)
@@ -55,11 +55,29 @@ handlers = {
 
 
 class Wrapper(nn.Module):
+    '''
+        a simple wrapper class around multiple networks
+    '''
 
-    def __init__(self,order,nets):
+    def __init__(self,order=None,nets=None,cfg=None):
         super(Wrapper,self).__init__()
-        self.order = order
-        self.nets = nets
+        self.order = []
+        self.nets = {}
+        if not cfg and (not order or nets):raise ValueError('You have to either pass a config or the order and networks to the Wrapper class')
+        if cfg:
+            cfg = sod(cfg)
+            for k,v in cfg['Nets'].items():
+                self.order.append(k)
+                self.nets[k] = Compile( json.loads(open(cfg['Nets'][k],'r').read() ) )
+            if "Load" in cfg:
+                try:self.load_state_dict(cfg['Load'])
+                except:pass
+        else:
+            self.order = order
+            self.nets = nets
+        self.likelihood = None
+        for o in self.order:
+            if hasattr(self.nets[o],'likelihood'):self.likelihood = self.nets[o].likelihood
 
     def __repr__(self):
         return '\n'.join( repr(self.nets[o]) for o in self.order )
@@ -72,23 +90,21 @@ class Wrapper(nn.Module):
             x = self.nets[o](x)
         return x
 
+    def load_state_dict(self,states):
+        states = sod(states)
+        for k,v in states.items():
+            try:
+                if isinstance(v,str):
+                    try:self.nets[k].load_state_dict(torch.load(v))
+                    except:self.nets[k].load_state_dict(torch.load(v,map_location='cpu'))
+                else:self.nets[k].load_state_dict(v)
+            except: raise Exception('Unable to load block {}'.format(k))
+        return self
+
 
 
 def cfg2nets(cfg):
-    nets = {}
-    order = []
-    for k,v in cfg['Nets'].items():
-        order.append(k)
-        nets[k] = Compile( json.loads(open(cfg['Nets'][k],'r').read() ) )
-    if "Load" in cfg:
-        for k,v in cfg['Load'].items():
-            try:
-                try:
-                    nets[k].load_state_dict(torch.load(v))
-                except:nets[k].load_state_dict(torch.load(v,map_location='cpu'))
-            except Exception as e:
-                print('could not load {}'.format(k))
-    return Wrapper(order,nets)
+    return Wrapper(cfg=cfg)
 PREDEFINED = load_dynamic_modules('BLOX.Modules')
 
 def Compile(obj):
@@ -98,6 +114,7 @@ def Compile(obj):
     layers = []
     COMPONENTS = {}
     if 'IMPORTS' in obj:
+        assert isinstance(obj['IMPORTS'],list), 'BLOX IMPORTS must be a string'
         for f in obj['IMPORTS']:
             if isinstance(f,str):
                 if f.endswith('.blx') or f.endswith('.json'):
@@ -108,41 +125,46 @@ def Compile(obj):
                                 obj_name:Compile( _obj ) 
                             } 
                         )
-                    USER_DEFINED.update( 
-                            { 
-                                obj_name:Compile( _obj ) 
-                            } 
-                        )
                 else: 
                     COMPONENTS.update( load( f )  )
-                    USER_DEFINED.update( load( f )  )
+                    # USER_DEFINED.update( load( f )  )
     if 'DEFS' in obj:
-        if 'BLOX' in obj['DEFS']:
-            for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
+        for k,fs in obj['DEFS'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
     if 'BLOX' in obj:
         for layer in obj['BLOX']:
-            if 'MODULE' in layer:
-                layers.append(PREDEFINED[layer['MODULE']['LAYER']](**layer['MODULE']['ARGS']) if isinstance(layer['MODULE'],dict) else PREDEFINED[layer['MODULE']]() )
-            elif 'DEF' in layer:
-                f = layer['DEF']
-                # if the block is defined in another file,load and continue
-                if f.endswith('.json') or f.endswith('.blx'):
-                    funcs = Compile( json.load( open(f,'r') ) )
-                # check to see if the block is previously defined
-                elif f in COMPONENTS:
+            if isinstance(layer,str):                
+                f = layer
+                print(layer,json.dumps(list(PREDEFINED.keys()),indent=2))
+                if f in COMPONENTS:
                     funcs = COMPONENTS[f]
                 elif f in PREDEFINED:
                     funcs = PREDEFINED[f]()
                 else:
-                    raise NotImplementedError('Function Block not defined in config file. Error @ {}'.format(f))
+                    raise ValueError('Function Block not defined in config file. Error @ {}'.format(f))
                 layers.append( funcs )
-            elif 'REPEAT' in layer:
-                b = layer['REPEAT']['BLOCK']
-                t = layer['REPEAT']['REPS']
-                layers.append( nn.Sequential(*[ c for _ in range(t) for c in COMPONENTS[b] ]) if isinstance(COMPONENTS[b],list) else COMPONENTS[b] ) 
             else:
-                for k,v in layer.items():
-                    layers.append( handlers[k](v) )
+                if 'MODULE' in layer:
+                    layers.append(PREDEFINED[layer['MODULE']['LAYER']](**layer['MODULE']['ARGS']) if isinstance(layer['MODULE'],dict) else PREDEFINED[layer['MODULE']]() )
+                elif 'DEF' in layer:
+                    f = layer['DEF']
+                    # if the block is defined in another file,load and continue
+                    if f.endswith('.json') or f.endswith('.blx'):
+                        funcs = Compile( json.load( open(f,'r') ) )
+                    # check to see if the block is previously defined
+                    elif f in COMPONENTS:
+                        funcs = COMPONENTS[f]
+                    elif f in PREDEFINED:
+                        funcs = PREDEFINED[f]()
+                    else:
+                        raise ValueError('Function Block not defined in config file. Error @ {}'.format(f))
+                    layers.append( funcs )
+                elif 'REPEAT' in layer:
+                    b = layer['REPEAT']['BLOCK']
+                    t = layer['REPEAT']['REPS']
+                    layers.append( nn.Sequential(*[ c for _ in range(t) for c in COMPONENTS[b] ]) if isinstance(COMPONENTS[b],list) else COMPONENTS[b] ) 
+                else:
+                    for k,v in layer.items():
+                        layers.append( handlers[k](v) )
     return nn.Sequential(*layers).cuda() if torch.cuda.is_available() else nn.Sequential(*layers)
         
 

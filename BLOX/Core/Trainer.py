@@ -39,8 +39,11 @@ from ..Common.Compiler import Compile,cfg2nets
 from ..DataSet.DataSet import DataSet
 from BLOX.Modules.ReplayMemory import ReplayMemory
 from BLOX.Common.Strings import TITLE as TEXT
+from BLOX.Loss.LR_Finder import LRFinder
 from collections import namedtuple
 from itertools import count
+from torch import optim
+import gpytorch
 
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 
@@ -51,14 +54,8 @@ Transition = namedtuple('Transition',
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
+
 from BLOX.Core.Recordable import METRICS,ADDITIONAL_METRICS,Vizzy
-
-def get_metric(m,loss,n_classes):
-    # from BLOX.Core.Recordable import METRICS
-    if m == "Loss":return METRICS[m](loss)
-    elif m =='ConfusionMatrix':return METRICS[m](n_classes)
-    else: return METRICS[m]()
-
 
 class Trainer:
 
@@ -192,43 +189,60 @@ class Trainer:
             self.train_ganlearners()
             return
         config = self.config
+        if 'TrainsUI' in config:
+            import trains
+            try:task = trains.Task.init(project_name="TESTER", task_name="my first task")
+            except:pass
         torch.cuda.empty_cache()
 
         model = cfg2nets(config)
+        # config['Optimizer']['Kwargs'].update({'cycle_momentum':True})
         opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in model.nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
-        loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs'])
-        # data = DataLoader(DataSet(config['DataSet']), batch_size=config['BatchSize'] if 'BatchSize' in config else 1,shuffle=True )
+        
+        
+
+        
+        
+        
         data = DataSet(config['DataSet'])
+        # data.shuffle()
+
+        # data = DataLoader(data, batch_size=config['BatchSize'] if 'BatchSize' in config else 1,shuffle=True )
+        
+        loss = GetLoss(config['Loss']['Algo'],config['Loss']['Kwargs']) if 'Variational' not in config['Loss']['Algo'] else getattr( gpytorch.mlls,config['Loss']['Algo'] )(model.likelihood,model,data._eval.y.numel() )
+        if 'CrossEntropy' in config['Loss']['Algo'] or 'NLL' in config['Loss']['Algo']:data.categorical()
+        # lr_finder = LRFinder( model,opt,loss )
+
+        # results = lr_finder.range_test(data, end_lr=1, num_iter=len(data), step_mode="linear")
+
+        # ix = np.argmax(np.abs(np.gradient( results['loss'] )))
+
+        # opt = optim.lr_scheduler.CyclicLR(opt,.00001, .01)
+
+        # for g in opt.param_groups: g['lr'] = results['lr'][ix]
+        
         writer = SummaryWriter(config['TensorboardX']['Dir'] if 'Dir' in config['TensorboardX'] else 'runs')
 
         tlosses = np.zeros(config['Epochs'])
         dlosses = np.zeros(config['Epochs'])
 
-        trainer = create_supervised_trainer(model, opt, loss, device=device,output_transform=lambda x, y, y_pred, loss: (y_pred, y,))
+        trainer = create_supervised_trainer(model, opt, loss, device=device,output_transform=lambda x, y, y_pred, loss: (y_pred, y, loss) )
 
-        for m in config['TensorboardX']['Log']:
-            if m not in METRICS:continue
-            mtrc = get_metric(m,loss,16)
-            mtrc.attach(trainer,m)
+        evaluator = create_supervised_evaluator(model,device=device,output_transform=lambda x, y, y_pred : (y_pred, y))
 
-        # evaluator = create_supervised_evaluator(model,
-        #                                         metrics=dict(zip( config['TensorboardX']['Log'], [ get_metric(m,loss,16) for m in config['TensorboardX']['Log']  if m in METRICS] )),
-        #                                         device=device)
         pbar = tqdm.tqdm(
             initial=0, leave=False, total=len(data),
         )
 
         add_metrics = {}
-        model(data[0][0])
+        iter_vars = {'acc':0.,'idx':0.}
         @trainer.on(Events.ITERATION_COMPLETED)
-        def log_training_metrics(engine):
+        @evaluator.on(Events.ITERATION_COMPLETED)
+        def log_metrics(engine):
             i = engine.state.iteration 
             if (i%(config['TensorboardX']['LogEvery']))==0 and config['TensorboardX']['LogEvery'] > 0 and writer:
-                for m in engine.state.metrics.keys():
-                    if m in METRICS:writer.add_scalar(m, engine.state.metrics[m], engine.state.iteration)
-                try:
-                    for m in config['TensorboardX']['Log']:
-
+                for m in config['TensorboardX']['Log']:
+                    try:
                         if m in ADDITIONAL_METRICS:
                             if m not in add_metrics:
                                 add_metrics[m] = {
@@ -237,20 +251,38 @@ class Trainer:
                                 }
                             add_metrics[m]['y'].append( engine.state.output[1].view(-1).numpy() )
                             add_metrics[m]['y_h'].append( engine.state.output[0].view(-1).data.numpy() )
-                except:pass
+                    except:pass
+                if len(engine.state.output) == 3 and 'Loss' in config['TensorboardX']['Log']:
+                    writer.add_scalar('loss', engine.state.output[-1].item(), engine.state.iteration)
+
+                if 'IterAcc' in config['TensorboardX']['Log']:
+                    acc = iter_vars['acc']
+                    idx = iter_vars['idx']
+                    idx += 1
+                    y_true = engine.state.output[-1 if len(engine.state.output) == 2 else -2 ]
+                    if 'CrossEntropy' not in config['Loss']['Algo'] and 'NLL' not in config['Loss']['Algo']: y_true = y_true.argmax(dim=1)
+                    y_hat = engine.state.output[0]
+                    max_index = y_hat.max(dim = 1)[1]
+                    acc += (max_index == y_true).sum().item()/data.bsz
+                    iter_vars['acc'] = acc
+                    iter_vars['idx'] = idx
+                    writer.add_scalar('{} IterAcc'.format('train' if data.training else 'eval'),100.*(acc/idx) , engine.state.iteration)
 
                 pbar.update(config['TensorboardX']['LogEvery'])
         @trainer.on(Events.EPOCH_COMPLETED)
         def log_validation_results(engine):
-            # evaluator.run(val_loader)
-            # pbar.refresh()
+            pbar.refresh()
             pbar.n = pbar.last_print_n = 0
-        try:
-            trainer.run(data, max_epochs=config['Epochs'])
-        except:pass
-        pbar.close()
-        try:
             for m in config['TensorboardX']['Log']:
-                if m in ADDITIONAL_METRICS:
-                    getattr(Vizzy,m)(Vizzy,ADDITIONAL_METRICS[m]( add_metrics[m]['y_h'],add_metrics[m]['y'] ))
-        except Exception as e:pass
+                try:
+                    if m in ADDITIONAL_METRICS:
+                        getattr(Vizzy,m)(Vizzy,ADDITIONAL_METRICS[m]( add_metrics[m]['y_h'],add_metrics[m]['y'] ))
+                except Exception as e:pass
+            for m in config['Optimizer']['Params']:torch.save(model.nets[m],'{}.{}'.format(m,config['FileExt']))
+            add_metrics = {}
+            data.eval()
+            evaluator.run(data._eval)
+            data.train()
+            data.shuffle()
+        trainer.run(data._train, max_epochs=config['Epochs'])
+        pbar.close()

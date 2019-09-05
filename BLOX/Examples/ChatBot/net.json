@@ -1,0 +1,14 @@
+{
+    "BLOX":[
+            {"DEF":"Evaluator"}
+    ],
+    "Notes":"",
+    "Name":"chatbot",
+    "IMPORTS":[
+        "Evaluator"
+    ],
+    "DEFS":{
+            "BLOX":{
+        }
+    }
+}

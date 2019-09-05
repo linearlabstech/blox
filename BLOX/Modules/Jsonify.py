@@ -28,13 +28,13 @@ class Jsonify:
 
     def __call__(self,x):
         def handle_data(data):
-            if isinstance(data,torch.Tensor):return data.cpu().data.numpy().tolist()
-            elif isinstance(data,numpy.ndarray):data.tolist()
+            if isinstance(data,(torch.Tensor,numpy.ndarray) ):return data.tolist()
             elif isinstance(data,dict):return dict(
                                                 zip(
                                                     data.keys(),
                                                     [handle_data(v) for v in data.values() ]
                                                 )
                                             )
+            elif isinstance(data,(list,tuple) ): return [ handle_data(v) for v in data]
             return data
         return handle_data(x)

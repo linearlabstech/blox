@@ -23,8 +23,8 @@ from multiprocessing import Process
 from ..Common.Compiler import Compile
 from ..Common.utils import StrOrDict as sod
 from ..RabbitMQ.Host import worker
-
-
+import torch
+from torch import nn
 class DummyClass:
 
     def __init__(self):
@@ -32,24 +32,44 @@ class DummyClass:
 
     def __call__(self,x):
         return x
-
 class ParallelPipe:
-    def __init__(self,cfg):
+    def __init__(self,cfg,as_dict=True):
+        # super(ParallelPipe,self).__init__()
         cfg = sod(cfg)
         self.models = {}
+        self.as_dict=as_dict
+        self.no_grad = False
         for k,v in cfg.items():
-            self.models[k] = Compile( json.loads(open(cfg[k],'r').read() ) )
+            self.models[k] = Compile( json.loads(open(cfg[k],'r').read() ) ) if isinstance(cfg[k],str) else ParallelPipe( cfg[k] )
     def load(self,files):
         for k,v in files.items():
             if k in self.models: self.models[k].load_state_dict(torch.load(v))
 
+    def train(self):
+        self.no_grad = False
+        for f in self.models.keys():self.models[f].train()
+    
+    def eval(self):
+        self.no_grad = True
+        for f in self.models.keys():self.models[f].eval()
+
     def __call__(self,x):
-        return dict(
-            zip(
-                self.models.keys(),
-                [f(x) for f in self.models.values()]
-            )
-        )
+        if self.no_grad:
+            with toch.no_grad(): return dict(
+                zip(
+                    self.models.keys(),
+                    [f(x) for f in self.models.values()]
+                )
+            ) if self.as_dict else \
+            [f(x) for f in self.models.values()]
+        else: return dict(
+                zip(
+                    self.models.keys(),
+                    [f(x) for f in self.models.values()]
+                )
+            ) if self.as_dict else \
+            [f(x) for f in self.models.values()]
+
     def __str__(self):
         import texttable as tt
         tab = tt.Texttable()
@@ -63,14 +83,17 @@ class ParallelPipe:
 
 class Pipe:
     def __init__(self,cfg):
+        # super(Pipe,self).__init__()
         cfg = sod(cfg)
         self.cfg = cfg
         self.order = []
         self.models = {}
+        self.no_grad = False
         for k,v in cfg.items():
             if "Load" in k:continue
             self.order.append(k)
-            self.models[k] = Compile( json.loads(open(cfg[k],'r').read() ) ).eval() if isinstance(cfg[k],str) else ParallelPipe( cfg[k] )
+            self.models[k] = Compile( json.loads(open(v,'r').read() ) ) if isinstance(v,str) else ParallelPipe( v )
+
         if "Load" in cfg:
             for k,v in cfg['Load'].items():
                 try:
@@ -78,11 +101,24 @@ class Pipe:
                 except:
                     self.models[k].load(cfg['Load'])
 
+    def train(self):
+        self.no_grad = False
+        for f in self.order:self.models[f].train()
+    
+    def eval(self):
+        self.no_grad = True
+        for f in self.order:self.models[f].eval()
+    
+
     def __call__(self,x):
-        with torch.no_grad():
+        if self.no_grad:
+            with torch.no_grad():
+                for f in self.order: x = self.models[f](x)
+        else:
             for f in self.order: x = self.models[f](x)
         return x
 
+    
     def __str__(self):
         import texttable as tt
         s = ''
@@ -94,16 +130,16 @@ class Pipe:
             s += tab.draw() + '\n'
         return s
 
-class PipeLine:
+class PipeLine(nn.Module):
     backend = 'rmq'
     def __init__(self,cfg=None):
+        super(PipeLine,self).__init__()
         self.pipes = []
         self.threads = []
         self.running = False
         if cfg:self.cfg = sod(cfg)
 
-    def __exit__(self):
-        self.close()
+    def __exit__(self, exc_type, exc_value, traceback):self.close()
 
     def __str__(self):
         s = ''
@@ -122,8 +158,7 @@ class PipeLine:
         self.running = False
 
     def __call__(self,x):
-        for f in self.pipes:
-            x = f(x)
+        for f in self.pipes:x = f(x)
         return x
 
     def run(self):

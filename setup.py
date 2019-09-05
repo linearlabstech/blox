@@ -27,7 +27,6 @@ with open('requirements.txt','r') as fp:
 #         command.install.install.run(self)
 
 p = find_packages()
-print(p)
 setup(
     name="BLOX",
     packages=p,

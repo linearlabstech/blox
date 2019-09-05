@@ -23,6 +23,7 @@ from ..Modules.Jsonify import Jsonify
 from ..DataSet.DataTools import img2tensor
 import binascii
 import io,ast
+import traceback,sys
 jsonifier = Jsonify()
 def worker(HOST,QUEUE,PIPELINE):
     connection = pika.BlockingConnection(pika.ConnectionParameters(host=HOST))
@@ -34,17 +35,15 @@ def worker(HOST,QUEUE,PIPELINE):
     def on_request(ch, method, props, x):
         return_error = False
         try:
-            x = ast.literal_eval(x.decode())
-            x = torch.tensor( [[x] ] )
-            for f in PIPELINE:x = f(x)
+            x = PIPELINE( json.loads(x.decode()) )
         except Exception as e:
-            print(e)
             return_error = True
+
         ch.basic_publish(exchange='',
                         routing_key=props.reply_to,
                         properties=pika.BasicProperties(correlation_id = \
                                                             props.correlation_id),
-                        body=json.dumps( jsonifier(x) ) if not return_error else 'THERE WAS AN ERROR PROCESSING YOUR REQUEST' )
+                        body=json.dumps( jsonifier(x) if not isinstance(x,dict) else x ) if not return_error else {'error':'THERE WAS AN ERROR PROCESSING YOUR REQUEST'} )
         ch.basic_ack(delivery_tag = method.delivery_tag)
 
     channel.basic_qos(prefetch_count=1)

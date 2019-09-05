@@ -38,7 +38,8 @@ CURSOR_UP_ONE = '\x1b[1A'
 ERASE_LINE = '\x1b[2K'
 sys.path.append(os.getcwd())
 from gym import envs
-
+from BLOX import Loss
+import gpytorch
 import BLOX.Modules
 
 def try_func(raze=False,emsg=False):
@@ -56,7 +57,7 @@ def try_func(raze=False,emsg=False):
 
 def StrOrDict(cfg):
     if isinstance(cfg,str):
-        if cfg.endswith('.json'): cfg = json.load(open(cfg,'r'))
+        if cfg.endswith('.json') or cfg.endswith('.cfg'): cfg = json.load(open(cfg,'r'))
         else:cfg = json.loads(cfg)
     return cfg
 def ClearLine():
@@ -85,7 +86,7 @@ def load(module):
     for c in inspect.getmembers(imported, inspect.isclass):
         try:
             table[c[0]] = c[1](**args)
-        except Exception as e:pass
+        except Exception as e:print(e,'with class {}'.format(c[0]));exit()
     return table
 
 def GetEnv(action):
@@ -102,7 +103,13 @@ def GetAction(action):
     return GetEnv(action)
 
 def GetLoss(f,kwargs):
-    return getattr(nn,f)(**kwargs)
+    import pyro.infer as infer
+    try: return getattr(nn,f)(**kwargs)
+    except: 
+        try: return getattr(Loss,f)(**kwargs)
+        except:
+            try: return getattr(infer,f)(**kwargs).differentiable_loss
+            except:  return getattr(gpytorch.mlls,f)(**kwargs)
 
 def GetOptim(models,f,kwargs):
     return getattr(optim,f)(models ,**kwargs)

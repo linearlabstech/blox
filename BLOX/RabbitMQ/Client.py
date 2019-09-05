@@ -27,10 +27,11 @@ class Client(object):
 
         self.queue = queue
 
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host,heartbeat=600,
+                                       blocked_connection_timeout=500))
 
         self.channel = self.connection.channel()
-        result = self.channel.queue_declare(queue,exclusive=True)
+        result = self.channel.queue_declare(queue,exclusive=False)
 
         self.callback_queue = result.method.queue
 

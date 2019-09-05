@@ -103,11 +103,13 @@ class EpochMetrics:pass
 
 
 class Vizzy:
-    try:
-        from visdom import Visdom
-        viz = Visdom(port=8097, server='http://localhost')
-    except socket_error as e:
-        viz = None
+
+    def __init__(self):
+        try:
+            from visdom import Visdom
+            viz = Visdom(port=8097, server='http://localhost')
+        except socket_error as e:
+            viz = None
 
     @staticmethod
     def Accuracy(self,x):

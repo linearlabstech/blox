@@ -18,8 +18,11 @@ limitations under the License.
 """
 import random,torch
 
-def GenRandDatSet(input_size=128,output_size=128,size=500):
+def GenRandDatSet(input_size=128,output_size=128,size=500,categorical=False):
     return {
-        'inputs' :[torch.randn(1, input_size) for _ in range(size)],
-        'targets':[torch.cauchy_(1,output_size) for _ in range(size)]
+        'inputs' :torch.randn(size,1, input_size) ,
+        'targets':torch.randn(size,1,output_size)
+    } if not categorical else {
+        'inputs' :torch.randn(size,1, input_size),
+        'targets':torch.LongTensor((size,1)).random_(0, output_size)
     }

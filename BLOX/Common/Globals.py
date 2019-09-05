@@ -13,4 +13,7 @@ def load_dynamic_modules(module):
     return table
 USER_DEFINED = {}
 PREDEFINED = load_dynamic_modules('BLOX.Modules')
-print(PREDEFINED)
+
+# PATH
+
+# def get_global(key):

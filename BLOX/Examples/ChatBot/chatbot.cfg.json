@@ -1,0 +1,26 @@
+{
+    "Pipeline":{
+        "threads":1,
+        "addr":"localhost",
+        "queue":"default",
+        "Pipes":[
+            {
+                "Nets":{
+                    "chatbot":"net.json"
+                }
+            }
+        ]
+    },
+    "Deploy":[
+        {
+            "url":"/predict",
+            "name":"predict",
+            "client":{},
+            "arg":"data"
+        }
+    ],
+    "Process":[
+        "Pipeline"
+    ]
+    
+}

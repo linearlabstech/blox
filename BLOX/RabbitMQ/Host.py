@@ -30,7 +30,7 @@ def worker(HOST,QUEUE,PIPELINE):
 
     channel = connection.channel()
 
-    channel.queue_declare(queue=QUEUE)
+    channel.queue_declare(queue=QUEUE,exclusive=False)
 
     def on_request(ch, method, props, x):
         return_error = False

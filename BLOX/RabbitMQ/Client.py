@@ -35,8 +35,12 @@ class Client(object):
 
         self.callback_queue = result.method.queue
 
-        self.channel.basic_consume(self.on_response, no_ack=True,
-                                   queue=self.callback_queue)
+        # handle 1.0 versioning of pika
+        try:self.channel.basic_consume(self.on_response, no_ack=True,
+                                   queue=self.callback_queue,exclusive=False)
+        except:self.channel.basic_consume(self.callback_queue,self.on_response, no_ack=True,
+                                   exclusive=False)
+
 
     def on_response(self, ch, method, props, body):
         if self.corr_id == props.correlation_id:

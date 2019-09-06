@@ -47,7 +47,9 @@ def worker(HOST,QUEUE,PIPELINE):
         ch.basic_ack(delivery_tag = method.delivery_tag)
 
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(on_request, queue=QUEUE)
+    # handle 1.0 versioning of pika
+    try:channel.basic_consume(on_request, queue=QUEUE,exclusive=False)
+    except:channel.basic_consume(QUEUE,on_request,exclusive=False)
     print(" [x] Awaiting RPC requests")
     channel.start_consuming()
     # except Exception as e:print(e)

@@ -43,7 +43,7 @@ def worker(HOST,QUEUE,PIPELINE):
                         routing_key=props.reply_to,
                         properties=pika.BasicProperties(correlation_id = \
                                                             props.correlation_id),
-                        body=json.dumps( jsonifier(x) if not isinstance(x,dict) else x ) if not return_error else json.dumps({'error':'THERE WAS AN ERROR PROCESSING YOUR REQUEST'}) )
+                        body=str(json.dumps( jsonifier(x) if not isinstance(x,dict) else x ) if not return_error else json.dumps({'error':'THERE WAS AN ERROR PROCESSING YOUR REQUEST'})) ) 
         ch.basic_ack(delivery_tag = method.delivery_tag)
 
     channel.basic_qos(prefetch_count=1)

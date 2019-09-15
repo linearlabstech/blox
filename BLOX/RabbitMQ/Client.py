@@ -39,6 +39,10 @@ class Client(object):
         self.callback_queue = result.method.queue
 
         # handle 1.0 versioning of pika
+        try:self.channel.basic_consume(self.on_response, no_ack=True,
+                            queue=self.callback_queue,exclusive=False)
+        except:self.channel.basic_consume(self.callback_queue,self.on_response, no_ack=True,
+                                    exclusive=False)
 
 
     def on_response(self, ch, method, props, body):
@@ -54,10 +58,7 @@ class Client(object):
 
     def __call__(self, n,ex='',retried=False):
 
-        try:self.channel.basic_consume(self.on_response, no_ack=True,
-                                    queue=self.callback_queue,exclusive=False)
-        except:self.channel.basic_consume(self.callback_queue,self.on_response, no_ack=True,
-                                    exclusive=False)
+
 
         try:
             self.response = None
@@ -71,7 +72,8 @@ class Client(object):
                                     body=str(n) )
             while self.response is None:
                 self.connection.process_data_events()
-        except:
+        except Exception as e:
+            print(f'ERROR ({e}) Processing request, retrying')
             self.restart()
             if not retried: return self(n,ex,True) 
         return self.response

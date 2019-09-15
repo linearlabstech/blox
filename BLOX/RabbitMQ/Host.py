@@ -34,16 +34,18 @@ def worker(HOST,QUEUE,PIPELINE):
 
     def on_request(ch, method, props, x):
         return_error = False
-        try:
-            x = PIPELINE( json.loads(x.decode()) )
-        except Exception as e:
-            return_error = True
-
+        # try:
+        x = PIPELINE( json.loads(x.decode()) )
+        # except Exception as e:
+            # return_error = True
+            # print(e)
+        resp = str(json.dumps( jsonifier(x) if not isinstance(x,dict) else x ) if not return_error else json.dumps({'error':'THERE WAS AN ERROR PROCESSING YOUR REQUEST'}))
+        print(resp)
         ch.basic_publish(exchange='',
                         routing_key=props.reply_to,
                         properties=pika.BasicProperties(correlation_id = \
                                                             props.correlation_id),
-                        body=str(json.dumps( jsonifier(x) if not isinstance(x,dict) else x ) if not return_error else json.dumps({'error':'THERE WAS AN ERROR PROCESSING YOUR REQUEST'})) ) 
+                        body=resp ) 
         ch.basic_ack(delivery_tag = method.delivery_tag)
 
     channel.basic_qos(prefetch_count=1)

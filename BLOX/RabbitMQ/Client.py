@@ -58,8 +58,6 @@ class Client(object):
 
     def __call__(self, n,ex='',retried=False):
 
-
-
         try:
             self.response = None
             self.corr_id = str(uuid.uuid4())

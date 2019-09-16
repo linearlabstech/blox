@@ -43,7 +43,9 @@ class StandaloneApplication(BaseApplication):
         return self.application
 
 def register_endpoint(app,url,name,client,arg,preprocess=None,init={}):
-    def func():
+    @app.route(url,methods=['POSTS'])
+    def f():
+        f.__name__=name
         data = request.form.to_dict() 
         data = data if len(data) > 0 else request.get_json()
         if not client.initialized:client = client(init)
@@ -51,12 +53,6 @@ def register_endpoint(app,url,name,client,arg,preprocess=None,init={}):
         try:client.connection.close()
         except:pass
         return resp
-    app.add_url_rule(
-            url,
-            name,
-            func,
-            methods=['POST']
-    )
 
 def create_app():
     return Flask('BLOX')

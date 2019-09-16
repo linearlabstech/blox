@@ -42,11 +42,11 @@ class StandaloneApplication(BaseApplication):
     def load(self):
         return self.application
 
-def register_endpoint(app,url,name,client,arg,preprocess=None):
+def register_endpoint(app,url,name,client,arg,preprocess=None,init={}):
     def func():
         data = request.form.to_dict() 
         data = data if len(data) > 0 else request.get_json()
-        if not c.initialized:client = client()
+        if not c.initialized:client = client(init)
         resp = client( preprocess(data[arg] ) if preprocess else data[arg]).decode()
         try:client.connection.close()
         except:pass

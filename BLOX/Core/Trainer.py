@@ -198,13 +198,13 @@ class Trainer:
         model = cfg2nets(config)
         # config['Optimizer']['Kwargs'].update({'cycle_momentum':True})
         opt = GetOptim([ p for m in config['Optimizer']['Params'] for p in model.nets[m].parameters() ],config['Optimizer']['Algo'],config['Optimizer']['Kwargs'] )
-        
-        
 
-        
-        
-        
         data = DataSet(config['DataSet'])
+
+        if torch.cuda.device_count() > 0:
+            model = nn.DataParallel(model)
+            data = nn.DataParallel(data)
+
         # data.shuffle()
 
         # data = DataLoader(data, batch_size=config['BatchSize'] if 'BatchSize' in config else 1,shuffle=True )

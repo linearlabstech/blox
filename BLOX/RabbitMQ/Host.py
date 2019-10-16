@@ -34,11 +34,11 @@ def worker(HOST,QUEUE,PIPELINE):
 
     def on_request(ch, method, props, x):
         return_error = False
-        # try:
-        x = PIPELINE( json.loads(x.decode()) )
-        # except Exception as e:
-            # return_error = True
-            # print(e)
+        try:
+            x = PIPELINE( json.loads(x.decode()) )
+        except Exception as e:
+            return_error = True
+            print(e)
         resp = str(json.dumps( jsonifier(x) if not isinstance(x,dict) else x ) if not return_error else json.dumps({'error':'THERE WAS AN ERROR PROCESSING YOUR REQUEST'}))
         print(resp)
         ch.basic_publish(exchange='',

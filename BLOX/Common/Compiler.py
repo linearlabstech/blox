@@ -129,7 +129,8 @@ def Compile(obj):
                     COMPONENTS.update( load( f )  )
                     # USER_DEFINED.update( load( f )  )
     if 'DEFS' in obj:
-        for k,fs in obj['DEFS'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
+        for k,fs in obj['DEFS']['BLOX'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
+        # for k,fs in obj['DEFS'].items():COMPONENTS.update( {k: nn.Sequential(*[handlers[k](v) for f in fs for k,v in f.items() ]) } )
     if 'BLOX' in obj:
         for layer in obj['BLOX']:
             if isinstance(layer,str):                

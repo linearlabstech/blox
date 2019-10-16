@@ -203,7 +203,7 @@ class Trainer:
 
         if torch.cuda.device_count() > 0:
             model = nn.DataParallel(model)
-            data = nn.DataParallel(data)
+            # data = nn.DataParallel(data)
 
         # data.shuffle()
 

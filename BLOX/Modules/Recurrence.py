@@ -30,6 +30,6 @@ class Recurrence(nn.Module):
     def __call__(self,x):
         (y,h) = x
         # return (y).squeeze(1)
-        y = y.view(len(y), -1)
-        print(y.size())
+        # y = y.view(len(y), -1)
+        # print(y.size())
         return y
